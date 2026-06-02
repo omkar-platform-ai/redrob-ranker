@@ -1,0 +1,19 @@
+team_name: "Velocity Labs"
+participant_id: ""        # Fill from portal after registration
+github_repo: "https://github.com/omkar-aiaccelerate/redrob-ranker"
+sandbox_link: ""          # Fill after HuggingFace Spaces / Streamlit Cloud deploy
+
+ai_tools_used:
+  - tool: "Claude (Anthropic)"
+    usage: "Architecture design, code generation, debugging, prompt engineering"
+  - tool: "BAAI/bge-base-en-v1.5 (open-source)"
+    usage: "Candidate and JD dense embeddings for semantic retrieval"
+
+submission_notes: >
+  Multi-signal ranking engine: semantic similarity (40%) + role-fit scoring
+  (20%) + proficiency-weighted skill match (15%) + behavioral signals (15%)
+  + career trajectory (10%). Pre-computation builds a FAISS flat-IP index
+  over 100K candidate embeddings. Ranking step loads the index, ANN-retrieves
+  top-500, scores each with pure-CPU math, detects honeypots via profile
+  consistency checks, and outputs exactly 100 rows in < 5 minutes.
+  No LLM calls during the ranking step.

@@ -1,0 +1,242 @@
+<mxfile host="app.diagrams.net" agent="Velocity Labs">
+  <diagram id="architecture" name="Redrob Ranker Architecture">
+    <mxGraphModel dx="978" dy="635" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;fontColor=#1a1a2e;" value="Redrob Ranker — System Architecture" vertex="1">
+          <mxGeometry height="40" width="620" x="520" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" parent="1" style="text;html=1;align=center;verticalAlign=middle;resizable=0;strokeColor=none;fillColor=none;fontSize=12;fontColor=#555555;" value="INDIA.RUNS Hackathon · Track 01 · Velocity Labs" vertex="1">
+          <mxGeometry height="24" width="620" x="520" y="55" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_precompute_bg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f4fd;strokeColor=#5b9bd5;strokeWidth=2;opacity=40;arcSize=4;" value="" vertex="1">
+          <mxGeometry height="330" width="1580" x="40" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_precompute_label" parent="1" style="text;html=1;align=left;verticalAlign=top;fontStyle=1;fontSize=13;fontColor=#1a5276;strokeColor=none;fillColor=none;" value="PRE-COMPUTATION PIPELINE  (run once · no time limit · LLM calls allowed)" vertex="1">
+          <mxGeometry height="26" width="700" x="55" y="97" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_rank_bg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eafaf1;strokeColor=#27ae60;strokeWidth=2;opacity=40;arcSize=4;" value="" vertex="1">
+          <mxGeometry height="480" width="1580" x="40" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_rank_label" parent="1" style="text;html=1;align=left;verticalAlign=top;fontStyle=1;fontSize=13;fontColor=#145a32;strokeColor=none;fillColor=none;" value="RANKING STEP  (≤5 min · CPU only · NO LLM · NO network — enforced by hackathon Docker sandbox)" vertex="1">
+          <mxGeometry height="26" width="900" x="55" y="468" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_output_bg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fdf2e9;strokeColor=#e67e22;strokeWidth=2;opacity=40;arcSize=4;" value="" vertex="1">
+          <mxGeometry height="120" width="1580" x="40" y="970" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_output_label" parent="1" style="text;html=1;align=left;verticalAlign=top;fontStyle=1;fontSize=13;fontColor=#784212;strokeColor=none;fillColor=none;" value="SUBMISSION OUTPUT  (spec: candidate_id, rank, score, reasoning · exactly 100 rows)" vertex="1">
+          <mxGeometry height="26" width="800" x="50" y="944" as="geometry" />
+        </mxCell>
+        <mxCell id="input_candidates" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=12;fontStyle=1;" value="candidates.jsonl&#xa;(100K records)" vertex="1">
+          <mxGeometry height="80" width="140" x="70" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="input_jd" parent="1" style="shape=note;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=12;fontStyle=1;size=16;" value="job_description.txt&#xa;(raw JD text)" vertex="1">
+          <mxGeometry height="100" width="140" x="70" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="candidate_parser" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=11;align=left;" value="&lt;b&gt;CandidateParser&lt;/b&gt;&#xa;src/parsers/candidate.py&#xa;&#xa;• Maps redrob_signals fields&#xa;• Derives: seniority, tenure stats,&#xa;  promotion count, consulting flag&#xa;• Builds embedding_text&#xa;  (career descriptions first)" vertex="1">
+          <mxGeometry height="130" width="220" x="280" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="jd_parser" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=11;align=left;" value="&lt;b&gt;JD Parser (LLM)&lt;/b&gt;&#xa;src/parsers/jd.py&#xa;&#xa;• Calls Claude Haiku or Gemini Flash&#xa;• Extracts: required_skills,&#xa;  nice_to_have, YoE range,&#xa;  disqualifiers, location prefs&#xa;• Falls back to keyword extraction" vertex="1">
+          <mxGeometry height="130" width="220" x="280" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="llm_cloud" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=11;fontStyle=2;" value="☁ LLM API&#xa;(Anthropic / Gemini)&#xa;pre-compute ONLY" vertex="1">
+          <mxGeometry height="70" width="160" x="585" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="embedder" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=11;align=left;" value="&lt;b&gt;Embedder&lt;/b&gt;&#xa;src/embedder.py&#xa;&#xa;BAAI/bge-base-en-v1.5&#xa;768-dim · L2-normalised&#xa;~430MB download once&#xa;batch_size=256" vertex="1">
+          <mxGeometry height="120" width="190" x="580" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="faiss_builder" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=11;align=left;" value="&lt;b&gt;FAISS Index Builder&lt;/b&gt;&#xa;src/index.py&#xa;&#xa;IndexFlatIP (cosine via&#xa;inner-product on L2-norm)&#xa;100K × 768 ≈ 295MB RAM&#xa;Exact search (no HNSW needed)" vertex="1">
+          <mxGeometry height="130" width="210" x="850" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="disk_artifacts" parent="1" style="shape=mxgraph.cisco.servers.standard_server;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;fontSize=11;align=left;" value="&lt;b&gt;Disk Artifacts (data/index/)&lt;/b&gt;&#xa;&#xa;candidates.faiss&#xa;candidate_ids.json&#xa;parsed_candidates.jsonl&#xa;parsed_jd.json" vertex="1">
+          <mxGeometry height="160" width="200" x="1150" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="load_index" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=11;align=left;" value="&lt;b&gt;Load Index&lt;/b&gt;&#xa;src/index.py&#xa;&#xa;Reads FAISS + IDs from disk&#xa;&lt; 1 second" vertex="1">
+          <mxGeometry height="100" width="180" x="70" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="jd_embed_rank" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=11;align=left;" value="&lt;b&gt;Embed JD&lt;/b&gt;&#xa;Embedder.embed_text()&#xa;&#xa;Uses pre-loaded model&#xa;No LLM · ~5ms" vertex="1">
+          <mxGeometry height="100" width="180" x="310" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="ann_search" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=11;align=left;" value="&lt;b&gt;ANN Search&lt;/b&gt;&#xa;FAISS IndexFlatIP&#xa;&#xa;JD vector → top-500&#xa;cosine scores&#xa;~200ms on 100K" vertex="1">
+          <mxGeometry height="100" width="180" x="550" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="scorer_bg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8e1;strokeColor=#f9a825;strokeWidth=2;opacity=60;arcSize=3;" value="" vertex="1">
+          <mxGeometry height="320" width="640" x="800" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="scorer_title" parent="1" style="text;html=1;align=left;fontStyle=1;fontSize=13;fontColor=#5d4037;strokeColor=none;fillColor=none;" value="Multi-Signal Ranker — src/ranker.py" vertex="1">
+          <mxGeometry height="24" width="400" x="815" y="497" as="geometry" />
+        </mxCell>
+        <mxCell id="scorer_semantic" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#1976d2;strokeWidth=2;fontSize=11;" value="&lt;b&gt;Semantic Score&lt;/b&gt;&#xa;Weight: 40%&#xa;FAISS cosine similarity" vertex="1">
+          <mxGeometry height="70" width="180" x="820" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="scorer_rolefit" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#1976d2;strokeWidth=2;fontSize=11;" value="&lt;b&gt;Role-Fit Score&lt;/b&gt;&#xa;Weight: 20%&#xa;Title · Company type&#xa;Location · YoE band" vertex="1">
+          <mxGeometry height="70" width="180" x="1020" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="scorer_skill" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#1976d2;strokeWidth=2;fontSize=11;" value="&lt;b&gt;Skill Score&lt;/b&gt;&#xa;Weight: 15%&#xa;Proficiency × duration&#xa;RapidFuzz matching" vertex="1">
+          <mxGeometry height="70" width="180" x="1220" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="scorer_behavioral" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#1976d2;strokeWidth=2;fontSize=11;" value="&lt;b&gt;Behavioral Score&lt;/b&gt;&#xa;Weight: 15%&#xa;Recency decay + response rate&#xa;+ engagement + notice period" vertex="1">
+          <mxGeometry height="80" width="180" x="820" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="scorer_career" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#1976d2;strokeWidth=2;fontSize=11;" value="&lt;b&gt;Career Score&lt;/b&gt;&#xa;Weight: 10%&#xa;Velocity · Stability&#xa;Progression · Hidden Gem" vertex="1">
+          <mxGeometry height="80" width="180" x="1020" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="fusion" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;strokeWidth=2;fontSize=11;" value="&lt;b&gt;Weighted Fusion&lt;/b&gt;&#xa;0.40×semantic + 0.20×role_fit&#xa;+ 0.15×skill + 0.15×behavioral&#xa;+ 0.10×career" vertex="1">
+          <mxGeometry height="80" width="200" x="1220" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="honeypot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=11;align=left;" value="&lt;b&gt;Honeypot Detector&lt;/b&gt;&#xa;src/honeypot.py&#xa;&#xa;YoE vs career mismatch&#xa;Expert + no time used&#xa;Title-skill mismatch&#xa;→ score = 0.0" vertex="1">
+          <mxGeometry height="120" width="200" x="310" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="sort_top100" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=11;align=left;" value="&lt;b&gt;Sort + Top-100&lt;/b&gt;&#xa;&#xa;Descending score&#xa;Non-increasing enforced&#xa;Tie-break: candidate_id asc" vertex="1">
+          <mxGeometry height="100" width="190" x="70" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="reasoning" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=11;align=left;" value="&lt;b&gt;Reasoning Generator&lt;/b&gt;&#xa;src/reasoning.py&#xa;&#xa;Template-based (NO LLM)&#xa;Specific to each candidate&#xa;Mentions actual skills/yoe/company&#xa;Varied by rank tier" vertex="1">
+          <mxGeometry height="120" width="210" x="560" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="output_csv" parent="1" style="shape=note;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=3;fontSize=13;fontStyle=1;size=20;" value="&lt;b&gt;submission.csv&lt;/b&gt;&#xa;candidate_id, rank, score, reasoning&#xa;Exactly 100 rows · UTF-8 · non-increasing scores" vertex="1">
+          <mxGeometry height="80" width="520" x="560" y="990" as="geometry" />
+        </mxCell>
+        <mxCell id="validator" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=11;" value="&lt;b&gt;validate_submission.py&lt;/b&gt;&#xa;Checks: 100 rows · ranks 1-100 · non-increasing · IDs exist · no empty reasoning" vertex="1">
+          <mxGeometry height="70" width="380" x="1140" y="990" as="geometry" />
+        </mxCell>
+        <mxCell id="sandbox" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=11;" value="&lt;b&gt;Sandbox (HuggingFace Spaces)&lt;/b&gt;&#xa;Streamlit · scripts/demo_app.py · Dockerfile&#xa;Accepts ≤100 candidates · runs pipeline end-to-end" vertex="1">
+          <mxGeometry height="70" width="420" x="70" y="990" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_bg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;strokeWidth=1;" value="" vertex="1">
+          <mxGeometry height="220" width="230" x="1370" y="1130" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_title" parent="1" style="text;html=1;fontStyle=1;fontSize=12;strokeColor=none;fillColor=none;" value="Legend" vertex="1">
+          <mxGeometry height="20" width="100" x="1390" y="1140" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" parent="1" style="rounded=1;fillColor=#e8f4fd;strokeColor=#5b9bd5;fontSize=11;" value="  Pre-computation phase" vertex="1">
+          <mxGeometry height="28" width="200" x="1380" y="1165" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" parent="1" style="rounded=1;fillColor=#eafaf1;strokeColor=#27ae60;fontSize=11;" value="  Ranking step (CPU, no LLM)" vertex="1">
+          <mxGeometry height="28" width="200" x="1380" y="1200" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" parent="1" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" value="  LLM (pre-compute only)" vertex="1">
+          <mxGeometry height="28" width="200" x="1380" y="1235" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" parent="1" style="rounded=1;fillColor=#bbdefb;strokeColor=#1976d2;fontSize=11;" value="  Scorer module" vertex="1">
+          <mxGeometry height="28" width="200" x="1380" y="1270" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5" parent="1" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" value="  Output / artifact" vertex="1">
+          <mxGeometry height="28" width="200" x="1380" y="1305" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="input_candidates" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#6c8ebf;" target="candidate_parser">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="input_jd" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#6c8ebf;" target="jd_parser">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="jd_parser" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#b85450;dashed=1;" target="llm_cloud">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="candidate_parser" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#82b366;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="embedder">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="embedder" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#82b366;" target="faiss_builder">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="faiss_builder" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#82b366;" target="disk_artifacts">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6b" edge="1" parent="1" source="jd_parser" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#82b366;" target="disk_artifacts">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1050" y="340" />
+              <mxPoint x="1050" y="270" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="disk_artifacts" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#27ae60;dashed=1;fontStyle=2;fontSize=10;" target="load_index" value="load at startup">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1250" y="430" />
+              <mxPoint x="160" y="430" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="load_index" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#27ae60;" target="jd_embed_rank">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="jd_embed_rank" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#27ae60;" target="ann_search">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="ann_search" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#27ae60;fontSize=10;" target="scorer_semantic" value="top-500 IDs + scores">
+          <mxGeometry relative="1" x="-0.1575" y="10" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="scorer_semantic" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#1976d2;" target="fusion">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="910" y="600" />
+              <mxPoint x="1320" y="600" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="scorer_rolefit" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#1976d2;" target="fusion">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1110" y="600" />
+              <mxPoint x="1320" y="600" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="scorer_skill" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#1976d2;" target="fusion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="scorer_behavioral" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#1976d2;" target="fusion">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="910" y="710" />
+              <mxPoint x="1320" y="710" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="scorer_career" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#1976d2;" target="fusion">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1110" y="710" />
+              <mxPoint x="1320" y="710" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="fusion" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#e65100;fontSize=10;" target="sort_top100" value="composite score">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1320" y="830" />
+              <mxPoint x="165" y="830" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="honeypot" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#b85450;" target="sort_top100">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="sort_top100" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#27ae60;" target="reasoning">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="290" y="760" />
+              <mxPoint x="290" y="870" />
+              <mxPoint x="640" y="870" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="1" source="reasoning" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#e67e22;" target="output_csv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" edge="1" parent="1" source="output_csv" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#9673a6;" target="validator">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="formula_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe0b2;strokeColor=#e65100;strokeWidth=2;fontSize=11;align=left;" value="&lt;b&gt;Final Score Formula&lt;/b&gt;&#xa;0.40 × semantic&#xa;+ 0.20 × role_fit&#xa;+ 0.15 × skill&#xa;+ 0.15 × behavioral&#xa;+ 0.10 × career&#xa;&#xa;&lt;i&gt;Honeypot → score = 0.0&lt;/i&gt;" vertex="1">
+          <mxGeometry height="160" width="150" x="1460" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="eval_box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=11;align=left;" value="&lt;div style=&quot;text-align: justify;&quot;&gt;&lt;b style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Hackathon Scoring&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;text-align: justify;&quot;&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;0.50 × NDCG@10&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;text-align: justify;&quot;&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;0.30 × NDCG@50&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;text-align: justify;&quot;&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;0.15 × MAP&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;text-align: justify;&quot;&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;0.05 × P@10&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;text-align: justify;&quot;&gt;&lt;br&gt;&lt;/div&gt;&lt;div style=&quot;text-align: justify;&quot;&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Top-10 quality = 50% of score&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="150" width="150" x="1420" y="100" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

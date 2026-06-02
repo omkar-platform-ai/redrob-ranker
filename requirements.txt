@@ -1,0 +1,20 @@
+# Core ranking pipeline — no GPU, no API calls during ranking
+sentence-transformers==3.3.1
+faiss-cpu==1.9.0
+numpy==1.26.4
+pandas==2.2.3
+rapidfuzz==3.9.7
+python-dateutil==2.9.0
+
+# Pre-computation only (JD parsing via LLM — not run during ranking step)
+anthropic==0.40.0
+google-generativeai==0.8.3
+python-dotenv==1.0.1
+
+# Sandbox / demo UI
+streamlit==1.40.1
+
+# Dev / testing
+pytest==8.3.4
+pytest-cov==6.0.0
+ruff==0.8.6

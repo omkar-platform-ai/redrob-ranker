@@ -1,0 +1,30 @@
+# Secrets
+.env
+
+# Pre-computed artifacts (large, machine-specific)
+data/index/
+*.faiss
+*.npy
+
+# Dataset files (provided by hackathon, not ours to publish)
+data/candidates.jsonl
+data/candidates.jsonl.gz
+data/*.csv
+
+# Submission output (generate locally via rank.py)
+submission.csv
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# Tools
+.pytest_cache/
+.ruff_cache/
