@@ -1,0 +1,361 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 840" width="1100" height="840"
+     font-family="Arial, Helvetica, sans-serif" role="img">
+  <title>Redrob Ranker — System Architecture</title>
+  <desc>Animated system architecture: pre-computation pipeline feeding a constraint-bound ranking step, producing a 100-row submission CSV.</desc>
+
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 2 L8 5 L1 8" fill="none" stroke="context-stroke"
+            stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <style>
+      @keyframes flow {
+        0%   { stroke-dashoffset: 20; opacity:.25; }
+        50%  { opacity: 1; }
+        100% { stroke-dashoffset: 0;  opacity:.25; }
+      }
+      @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+      @keyframes rise  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+      .fl  { stroke-dasharray:7 5; animation:flow 1.8s linear infinite; }
+      .fl2 { stroke-dasharray:7 5; animation:flow 2.2s linear infinite .5s; }
+      .fl3 { stroke-dasharray:7 5; animation:flow 2.0s linear infinite 1.0s; }
+      .fl4 { stroke-dasharray:7 5; animation:flow 1.6s linear infinite .3s; }
+      .fl5 { stroke-dasharray:7 5; animation:flow 2.4s linear infinite .8s; }
+      .fl6 { stroke-dasharray:7 5; animation:flow 1.9s linear infinite 1.3s; }
+      .llm { animation:pulse 2s ease-in-out infinite; }
+      .nd  { animation:rise .4s ease both; }
+      @media(prefers-reduced-motion:reduce){
+        .fl,.fl2,.fl3,.fl4,.fl5,.fl6{animation:none;stroke-dasharray:none;opacity:.6}
+        .llm{animation:none} .nd{animation:none}
+      }
+    </style>
+  </defs>
+
+  <!-- ═══════════════════ TITLE ═══════════════════ -->
+  <text x="550" y="20" text-anchor="middle" font-size="17" font-weight="700" fill="#1a1a2e">
+    Redrob Ranker — System Architecture
+  </text>
+  <text x="550" y="36" text-anchor="middle" font-size="10" fill="#555555">
+    INDIA.RUNS Hackathon · Track 01 · Velocity Labs
+  </text>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LANE 1 — PRE-COMPUTATION
+  ════════════════════════════════════════════════════════ -->
+  <rect x="8" y="44" width="1084" height="268" rx="8"
+        fill="#e8f4fd" stroke="#5b9bd5" stroke-width="1.5" opacity=".6"/>
+  <text x="20" y="59" font-size="10" font-weight="700" fill="#1a5276">
+    PRE-COMPUTATION PIPELINE  ·  run once  ·  no time limit  ·  LLM calls allowed
+  </text>
+
+  <!-- Node 1 — candidates.jsonl -->
+  <g class="nd" style="animation-delay:.05s">
+    <rect x="18" y="76" width="122" height="52" rx="5"
+          fill="#dae8fc" stroke="#6c8ebf" stroke-width="1.4"/>
+    <text x="79" y="99" text-anchor="middle" font-size="11" font-weight="700" fill="#1a3a6e">candidates.jsonl</text>
+    <text x="79" y="115" text-anchor="middle" font-size="9" fill="#3b5998">100K records</text>
+  </g>
+
+  <!-- Node 2 — job_description -->
+  <g class="nd" style="animation-delay:.1s">
+    <rect x="18" y="188" width="122" height="52" rx="5"
+          fill="#dae8fc" stroke="#6c8ebf" stroke-width="1.4"/>
+    <text x="79" y="211" text-anchor="middle" font-size="11" font-weight="700" fill="#1a3a6e">job_description.txt</text>
+    <text x="79" y="227" text-anchor="middle" font-size="9" fill="#3b5998">Raw JD text</text>
+  </g>
+
+  <!-- Node 3 — CandidateParser -->
+  <g class="nd" style="animation-delay:.15s">
+    <rect x="162" y="64" width="192" height="108" rx="5"
+          fill="#fff2cc" stroke="#d6b656" stroke-width="1.4"/>
+    <text x="258" y="83" text-anchor="middle" font-size="11" font-weight="700" fill="#7d5a00">Candidate Parser</text>
+    <text x="258" y="99" text-anchor="middle" font-size="9" fill="#666">src/parsers/candidate.py</text>
+    <text x="258" y="114" text-anchor="middle" font-size="9" fill="#444">· Maps all redrob_signals fields</text>
+    <text x="258" y="128" text-anchor="middle" font-size="9" fill="#444">· Derives career stats, consulting flag</text>
+    <text x="258" y="142" text-anchor="middle" font-size="9" fill="#444">· Builds embedding_text (career first)</text>
+    <text x="258" y="156" text-anchor="middle" font-size="9" fill="#444">· Honeypot consistency checks</text>
+  </g>
+
+  <!-- Node 4 — JDParser -->
+  <g class="nd" style="animation-delay:.2s">
+    <rect x="162" y="183" width="192" height="76" rx="5"
+          fill="#fff2cc" stroke="#d6b656" stroke-width="1.4"/>
+    <text x="258" y="202" text-anchor="middle" font-size="11" font-weight="700" fill="#7d5a00">JD Parser</text>
+    <text x="258" y="217" text-anchor="middle" font-size="9" fill="#666">src/parsers/jd.py</text>
+    <text x="258" y="231" text-anchor="middle" font-size="9" fill="#444">· Extracts required_skills, YoE range</text>
+    <text x="258" y="245" text-anchor="middle" font-size="9" fill="#444">· Location prefs · disqualifiers</text>
+  </g>
+
+  <!-- Node 4b — LLM Badge -->
+  <g class="nd llm" style="animation-delay:.22s">
+    <rect x="170" y="266" width="180" height="24" rx="12"
+          fill="#f8cecc" stroke="#b85450" stroke-width="1.2"/>
+    <text x="260" y="278" text-anchor="middle" font-size="9" font-weight="700" fill="#7b2d28">
+      ☁ Claude Haiku / Gemini Flash  (pre-compute only)
+    </text>
+  </g>
+
+  <!-- Node 5 — Embedder -->
+  <g class="nd" style="animation-delay:.25s">
+    <rect x="378" y="64" width="172" height="110" rx="5"
+          fill="#d5e8d4" stroke="#82b366" stroke-width="1.4"/>
+    <text x="464" y="83" text-anchor="middle" font-size="11" font-weight="700" fill="#2d6a4f">Embedder</text>
+    <text x="464" y="98" text-anchor="middle" font-size="9" fill="#666">src/embedder.py</text>
+    <text x="464" y="113" text-anchor="middle" font-size="9" fill="#444">BAAI/bge-base-en-v1.5</text>
+    <text x="464" y="127" text-anchor="middle" font-size="9" fill="#444">768-dim · L2-normalised</text>
+    <text x="464" y="141" text-anchor="middle" font-size="9" fill="#444">batch_size=256 · MPS/CPU</text>
+    <text x="464" y="155" text-anchor="middle" font-size="9" fill="#888">~18–20 candidates/sec</text>
+  </g>
+
+  <!-- Node 6 — FAISS Builder -->
+  <g class="nd" style="animation-delay:.3s">
+    <rect x="574" y="70" width="172" height="100" rx="5"
+          fill="#d5e8d4" stroke="#82b366" stroke-width="1.4"/>
+    <text x="660" y="90" text-anchor="middle" font-size="11" font-weight="700" fill="#2d6a4f">FAISS Index Builder</text>
+    <text x="660" y="105" text-anchor="middle" font-size="9" fill="#666">src/index.py</text>
+    <text x="660" y="120" text-anchor="middle" font-size="9" fill="#444">IndexFlatIP (cosine via IP)</text>
+    <text x="660" y="134" text-anchor="middle" font-size="9" fill="#444">100K × 768 ≈ 295 MB RAM</text>
+    <text x="660" y="148" text-anchor="middle" font-size="9" fill="#444">Exact search · no HNSW needed</text>
+  </g>
+
+  <!-- Node 7 — Disk Artifacts -->
+  <g class="nd" style="animation-delay:.35s">
+    <rect x="770" y="58" width="200" height="162" rx="5"
+          fill="#f5f5f5" stroke="#757575" stroke-width="1.4"/>
+    <text x="870" y="77" text-anchor="middle" font-size="11" font-weight="700" fill="#333">Disk Artifacts</text>
+    <text x="870" y="92" text-anchor="middle" font-size="9" fill="#666">data/index/  (gitignored)</text>
+    <line x1="775" y1="100" x2="965" y2="100" stroke="#ccc" stroke-width="1"/>
+    <text x="870" y="115" text-anchor="middle" font-size="10" fill="#444">candidates.faiss</text>
+    <text x="870" y="131" text-anchor="middle" font-size="10" fill="#444">candidate_ids.json</text>
+    <text x="870" y="147" text-anchor="middle" font-size="10" fill="#444">parsed_candidates.jsonl</text>
+    <text x="870" y="163" text-anchor="middle" font-size="10" fill="#444">parsed_jd.json</text>
+    <text x="870" y="208" text-anchor="middle" font-size="9" fill="#888" font-style="italic">loaded at startup · &lt;1s</text>
+  </g>
+
+  <!-- ── ARROWS LANE 1 ── -->
+  <!-- candidates → CandidateParser  (y=102) -->
+  <line x1="140" y1="102" x2="162" y2="102" stroke="#6c8ebf" stroke-width="1.6"
+        class="fl" marker-end="url(#arr)" fill="none"/>
+  <!-- job_desc → JDParser  (y=214) -->
+  <line x1="140" y1="214" x2="162" y2="214" stroke="#6c8ebf" stroke-width="1.6"
+        class="fl2" marker-end="url(#arr)" fill="none"/>
+  <!-- JDParser → LLM badge  (vertical) -->
+  <line x1="258" y1="259" x2="258" y2="266" stroke="#b85450" stroke-width="1.4"
+        stroke-dasharray="4 3" class="fl3" marker-end="url(#arr)" fill="none"/>
+  <!-- CandidateParser → Embedder  (y=118, CP right=354, Emb left=378) -->
+  <line x1="354" y1="118" x2="378" y2="118" stroke="#82b366" stroke-width="1.6"
+        class="fl" marker-end="url(#arr)" fill="none"/>
+  <!-- Embedder → FAISS  (y=118) -->
+  <line x1="550" y1="118" x2="574" y2="118" stroke="#82b366" stroke-width="1.6"
+        class="fl2" marker-end="url(#arr)" fill="none"/>
+  <!-- FAISS → Disk  (y=118) -->
+  <line x1="746" y1="118" x2="770" y2="118" stroke="#82b366" stroke-width="1.6"
+        class="fl3" marker-end="url(#arr)" fill="none"/>
+  <!-- JDParser → Disk (parsed_jd.json)  L-route: right along y=221 then up to y=148 -->
+  <polyline points="354,221 758,221 758,148 770,148"
+            fill="none" stroke="#d6b656" stroke-width="1.2"
+            stroke-dasharray="5 4" class="fl4" marker-end="url(#arr)"/>
+  <text x="560" y="217" text-anchor="middle" font-size="8" fill="#a08000" font-style="italic">parsed_jd.json</text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       HANDOFF SEPARATOR
+  ════════════════════════════════════════════════════════════ -->
+  <text x="550" y="326" text-anchor="middle" font-size="9" fill="#555" font-style="italic">
+    ↓  rank.py loads all artifacts from data/index/ at startup  ↓
+  </text>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LANE 2 — RANKING STEP
+  ════════════════════════════════════════════════════════════ -->
+  <rect x="8" y="332" width="1084" height="392" rx="8"
+        fill="#eafaf1" stroke="#27ae60" stroke-width="1.5" opacity=".6"/>
+  <text x="20" y="347" font-size="10" font-weight="700" fill="#145a32">
+    RANKING STEP  ·  ≤5 min  ·  CPU only  ·  NO LLM  ·  NO network  —  enforced by hackathon Docker sandbox
+  </text>
+
+  <!-- Node C1 — Load Index -->
+  <g class="nd" style="animation-delay:.4s">
+    <rect x="18" y="356" width="148" height="58" rx="5"
+          fill="#d5e8d4" stroke="#82b366" stroke-width="1.4"/>
+    <text x="92" y="378" text-anchor="middle" font-size="11" font-weight="700" fill="#2d6a4f">Load Index</text>
+    <text x="92" y="393" text-anchor="middle" font-size="9" fill="#666">src/index.py</text>
+    <text x="92" y="407" text-anchor="middle" font-size="9" fill="#444">FAISS + IDs  ·  &lt;1 second</text>
+  </g>
+
+  <!-- Node C2 — Embed JD -->
+  <g class="nd" style="animation-delay:.45s">
+    <rect x="18" y="432" width="148" height="58" rx="5"
+          fill="#d5e8d4" stroke="#82b366" stroke-width="1.4"/>
+    <text x="92" y="454" text-anchor="middle" font-size="11" font-weight="700" fill="#2d6a4f">Embed JD</text>
+    <text x="92" y="469" text-anchor="middle" font-size="9" fill="#666">Embedder.embed_text()</text>
+    <text x="92" y="483" text-anchor="middle" font-size="9" fill="#444">No LLM  ·  ~5 ms</text>
+  </g>
+
+  <!-- Node C3 — ANN Search -->
+  <g class="nd" style="animation-delay:.5s">
+    <rect x="18" y="508" width="148" height="58" rx="5"
+          fill="#d5e8d4" stroke="#82b366" stroke-width="1.4"/>
+    <text x="92" y="530" text-anchor="middle" font-size="11" font-weight="700" fill="#2d6a4f">ANN Search</text>
+    <text x="92" y="545" text-anchor="middle" font-size="9" fill="#666">FAISS IndexFlatIP</text>
+    <text x="92" y="559" text-anchor="middle" font-size="9" fill="#444">JD vec → top-500  ·  ~200 ms</text>
+  </g>
+
+  <!-- ── Left column arrows ── -->
+  <line x1="92" y1="414" x2="92" y2="432" stroke="#27ae60" stroke-width="1.6"
+        class="fl" marker-end="url(#arr)" fill="none"/>
+  <line x1="92" y1="490" x2="92" y2="508" stroke="#27ae60" stroke-width="1.6"
+        class="fl2" marker-end="url(#arr)" fill="none"/>
+  <!-- ANN → Scorer: right then label -->
+  <line x1="166" y1="537" x2="196" y2="537" stroke="#27ae60" stroke-width="1.6"
+        class="fl3" marker-end="url(#arr)" fill="none"/>
+  <text x="178" y="531" text-anchor="middle" font-size="8" fill="#145a32" font-style="italic">top-500</text>
+
+  <!-- ══ SCORER CONTAINER ══ -->
+  <rect x="196" y="340" width="720" height="376" rx="7"
+        fill="#fffde7" stroke="#f9a825" stroke-width="1.5" opacity=".85"/>
+  <text x="556" y="357" text-anchor="middle" font-size="10" font-weight="700" fill="#5d4037">
+    Multi-Signal Ranker  ·  src/ranker.py
+  </text>
+
+  <!-- Scorer row S1 — Semantic -->
+  <g class="nd" style="animation-delay:.55s">
+    <rect x="212" y="366" width="224" height="40" rx="4"
+          fill="#bbdefb" stroke="#1976d2" stroke-width="1.1"/>
+    <text x="324" y="382" text-anchor="middle" font-size="11" font-weight="700" fill="#0d47a1">Semantic  ·  40%</text>
+    <text x="324" y="397" text-anchor="middle" font-size="9" fill="#1565c0">FAISS cosine similarity score</text>
+  </g>
+
+  <!-- Scorer row S2 — Role-Fit -->
+  <g class="nd" style="animation-delay:.6s">
+    <rect x="212" y="412" width="224" height="40" rx="4"
+          fill="#bbdefb" stroke="#1976d2" stroke-width="1.1"/>
+    <text x="324" y="428" text-anchor="middle" font-size="11" font-weight="700" fill="#0d47a1">Role-Fit  ·  20%</text>
+    <text x="324" y="443" text-anchor="middle" font-size="9" fill="#1565c0">Title · company type · location · YoE</text>
+  </g>
+
+  <!-- Scorer row S3 — Skill -->
+  <g class="nd" style="animation-delay:.65s">
+    <rect x="212" y="458" width="224" height="40" rx="4"
+          fill="#bbdefb" stroke="#1976d2" stroke-width="1.1"/>
+    <text x="324" y="474" text-anchor="middle" font-size="11" font-weight="700" fill="#0d47a1">Skill Depth  ·  15%</text>
+    <text x="324" y="489" text-anchor="middle" font-size="9" fill="#1565c0">Proficiency × duration  ·  RapidFuzz</text>
+  </g>
+
+  <!-- Scorer row S4 — Behavioral -->
+  <g class="nd" style="animation-delay:.7s">
+    <rect x="212" y="504" width="224" height="40" rx="4"
+          fill="#bbdefb" stroke="#1976d2" stroke-width="1.1"/>
+    <text x="324" y="520" text-anchor="middle" font-size="11" font-weight="700" fill="#0d47a1">Behavioral  ·  15%</text>
+    <text x="324" y="535" text-anchor="middle" font-size="9" fill="#1565c0">Recency decay · response rate · notice</text>
+  </g>
+
+  <!-- Scorer row S5 — Career -->
+  <g class="nd" style="animation-delay:.75s">
+    <rect x="212" y="550" width="224" height="40" rx="4"
+          fill="#bbdefb" stroke="#1976d2" stroke-width="1.1"/>
+    <text x="324" y="566" text-anchor="middle" font-size="11" font-weight="700" fill="#0d47a1">Career  ·  10%</text>
+    <text x="324" y="581" text-anchor="middle" font-size="9" fill="#1565c0">Velocity · stability · hidden-gem bonus</text>
+  </g>
+
+  <!-- Fusion bar S6 -->
+  <g class="nd" style="animation-delay:.8s">
+    <rect x="212" y="606" width="224" height="40" rx="4"
+          fill="#ffe0b2" stroke="#e65100" stroke-width="1.3"/>
+    <text x="324" y="622" text-anchor="middle" font-size="11" font-weight="700" fill="#7b3105">Weighted Fusion</text>
+    <text x="324" y="637" text-anchor="middle" font-size="9" fill="#bf360c">0.40s+0.20r+0.15sk+0.15b+0.10c</text>
+  </g>
+
+  <!-- Right column — Honeypot -->
+  <g class="nd" style="animation-delay:.85s">
+    <rect x="456" y="366" width="162" height="72" rx="5"
+          fill="#f8cecc" stroke="#b85450" stroke-width="1.3"/>
+    <text x="537" y="385" text-anchor="middle" font-size="11" font-weight="700" fill="#7b2d28">Honeypot Detector</text>
+    <text x="537" y="400" text-anchor="middle" font-size="9" fill="#922b21">src/honeypot.py</text>
+    <text x="537" y="414" text-anchor="middle" font-size="9" fill="#444">Profile consistency checks</text>
+    <text x="537" y="428" text-anchor="middle" font-size="9" fill="#444">→ score = 0.0 if flagged</text>
+  </g>
+
+  <!-- Right column — Reasoning -->
+  <g class="nd" style="animation-delay:.9s">
+    <rect x="456" y="454" width="162" height="72" rx="5"
+          fill="#fff9c4" stroke="#f9a825" stroke-width="1.3"/>
+    <text x="537" y="473" text-anchor="middle" font-size="11" font-weight="700" fill="#5d4037">Reasoning Gen</text>
+    <text x="537" y="488" text-anchor="middle" font-size="9" fill="#666">src/reasoning.py</text>
+    <text x="537" y="502" text-anchor="middle" font-size="9" fill="#444">Template-based  ·  no LLM</text>
+    <text x="537" y="516" text-anchor="middle" font-size="9" fill="#444">Grounded in candidate data</text>
+  </g>
+
+  <!-- Right column — Sort + Top-100 -->
+  <g class="nd" style="animation-delay:.95s">
+    <rect x="456" y="544" width="162" height="58" rx="5"
+          fill="#c8e6c9" stroke="#388e3c" stroke-width="1.3"/>
+    <text x="537" y="564" text-anchor="middle" font-size="11" font-weight="700" fill="#1b5e20">Sort → Top-100</text>
+    <text x="537" y="579" text-anchor="middle" font-size="9" fill="#2e7d32">Non-increasing scores enforced</text>
+    <text x="537" y="593" text-anchor="middle" font-size="9" fill="#2e7d32">Tie-break: candidate_id asc</text>
+  </g>
+
+  <!-- Far right — Validate -->
+  <g class="nd" style="animation-delay:1s">
+    <rect x="640" y="366" width="164" height="72" rx="5"
+          fill="#e8eaf6" stroke="#7986cb" stroke-width="1.3"/>
+    <text x="722" y="385" text-anchor="middle" font-size="11" font-weight="700" fill="#283593">validate_submission</text>
+    <text x="722" y="400" text-anchor="middle" font-size="9" fill="#666">validate_submission.py</text>
+    <text x="722" y="414" text-anchor="middle" font-size="9" fill="#444">100 rows · ranks 1-100</text>
+    <text x="722" y="428" text-anchor="middle" font-size="9" fill="#444">non-increasing · IDs exist</text>
+  </g>
+
+  <!-- ── ARROWS inside scorer ── -->
+  <!-- Fusion → Sort: right from fusion, up, right into sort -->
+  <polyline points="436,626 448,626 448,573 456,573"
+            fill="none" stroke="#388e3c" stroke-width="1.6"
+            class="fl4" marker-end="url(#arr)"/>
+
+  <!-- Sort → down to output -->
+  <line x1="537" y1="602" x2="537" y2="737" stroke="#e67e22" stroke-width="1.8"
+        class="fl5" marker-end="url(#arr)" fill="none"/>
+  <text x="547" y="675" font-size="9" fill="#784212" font-style="italic">top-100 ranked</text>
+
+  <!-- Validate connection from Sort -->
+  <polyline points="618,573 630,573 630,402 640,402"
+            fill="none" stroke="#7986cb" stroke-width="1.2"
+            stroke-dasharray="5 4" class="fl6" marker-end="url(#arr)"/>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LANE 3 — SUBMISSION OUTPUT
+  ════════════════════════════════════════════════════════════ -->
+  <rect x="8" y="738" width="1084" height="92" rx="8"
+        fill="#fff3e0" stroke="#e67e22" stroke-width="1.5" opacity=".7"/>
+  <text x="20" y="753" font-size="10" font-weight="700" fill="#784212">
+    SUBMISSION OUTPUT  ·  spec: candidate_id, rank, score, reasoning  ·  exactly 100 rows  ·  non-increasing scores  ·  UTF-8
+  </text>
+
+  <!-- submission.csv box -->
+  <g class="nd" style="animation-delay:1.05s">
+    <rect x="235" y="762" width="626" height="56" rx="6"
+          fill="#ffe6cc" stroke="#d79b00" stroke-width="2"/>
+    <text x="548" y="782" text-anchor="middle" font-size="12" font-weight="700" fill="#7d3c00">submission.csv</text>
+    <text x="548" y="800" text-anchor="middle" font-size="9.5" fill="#5d2e00">
+      candidate_id  ·  rank  ·  score  ·  reasoning  —  100 rows
+    </text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       WEIGHT LEGEND
+  ════════════════════════════════════════════════════════════ -->
+  <rect x="840" y="558" width="226" height="110" rx="6"
+        fill="none" stroke="#aaa" stroke-width="1" stroke-dasharray="5 4" opacity=".8"/>
+  <text x="852" y="574" font-size="9" font-weight="700" fill="#555">Scoring weights (sum = 1.0)</text>
+  <rect x="852" y="580" width="8" height="8" rx="2" fill="#bbdefb" stroke="#1976d2" stroke-width=".8"/>
+  <text x="864" y="588" font-size="9" fill="#333">Semantic        40%</text>
+  <rect x="852" y="594" width="8" height="8" rx="2" fill="#bbdefb" stroke="#1976d2" stroke-width=".8"/>
+  <text x="864" y="602" font-size="9" fill="#333">Role-Fit         20%</text>
+  <rect x="852" y="608" width="8" height="8" rx="2" fill="#bbdefb" stroke="#1976d2" stroke-width=".8"/>
+  <text x="864" y="616" font-size="9" fill="#333">Skill Depth      15%</text>
+  <rect x="852" y="622" width="8" height="8" rx="2" fill="#bbdefb" stroke="#1976d2" stroke-width=".8"/>
+  <text x="864" y="630" font-size="9" fill="#333">Behavioral       15%</text>
+  <rect x="852" y="636" width="8" height="8" rx="2" fill="#bbdefb" stroke="#1976d2" stroke-width=".8"/>
+  <text x="864" y="644" font-size="9" fill="#333">Career           10%</text>
+  <text x="953" y="658" text-anchor="middle" font-size="9" fill="#888" font-style="italic">NDCG@10 = 50% of final score</text>
+
+</svg>
