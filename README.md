@@ -39,7 +39,7 @@ FAISS index + parsed_jd.json (from disk)
               └──► top-100 ranked CSV
 ```
 
-**Final composite = 0.40 × NDCG@10 + ... see submission_spec**
+**Final composite = 0.50 × NDCG@10 + 0.30 × NDCG@50 + 0.15 × MAP + 0.05 × P@10 — see submission_spec**
 
 ---
 

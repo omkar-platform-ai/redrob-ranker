@@ -1,0 +1,270 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 860" width="1120" height="860"
+     font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" role="img">
+  <title>Redrob Ranker — System Architecture</title>
+  <desc>Static system architecture: a pre-computation pipeline (LLM JD parsing, embedding, FAISS index build) feeding a constraint-bound CPU-only ranking step (multi-signal scorer fusion, honeypot zero-out, template reasoning) that produces a 100-row submission CSV.</desc>
+
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="context-stroke"/>
+    </marker>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.8" flood-color="#000" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1120" height="860" fill="#ffffff"/>
+
+  <!-- ═══════════════ TITLE ═══════════════ -->
+  <text x="560" y="30" text-anchor="middle" font-size="20" font-weight="700" fill="#1a1a2e">
+    Redrob Ranker — System Architecture
+  </text>
+  <text x="560" y="50" text-anchor="middle" font-size="11" fill="#555555">
+    INDIA.RUNS Hackathon · Track 01 · Velocity Labs
+  </text>
+
+  <!-- ════════════════════════════════════════════════════════
+       LANE 1 — PRE-COMPUTATION
+  ════════════════════════════════════════════════════════ -->
+  <rect x="16" y="64" width="1088" height="272" rx="10"
+        fill="#e8f4fd" stroke="#5b9bd5" stroke-width="1.5" opacity=".55"/>
+  <text x="32" y="86" font-size="11" font-weight="700" fill="#1a5276">
+    PRE-COMPUTATION PIPELINE  ·  run once  ·  no time / RAM limit  ·  LLM calls allowed
+  </text>
+
+  <!-- candidates.jsonl -->
+  <g filter="url(#sh)">
+    <rect x="28" y="110" width="128" height="56" rx="6" fill="#dae8fc" stroke="#6c8ebf" stroke-width="1.4"/>
+  </g>
+  <text x="92" y="134" text-anchor="middle" font-size="11" font-weight="700" fill="#1a3a6e">candidates.jsonl</text>
+  <text x="92" y="150" text-anchor="middle" font-size="9" fill="#3b5998">100K records</text>
+
+  <!-- job_description.txt -->
+  <g filter="url(#sh)">
+    <rect x="28" y="226" width="128" height="56" rx="6" fill="#dae8fc" stroke="#6c8ebf" stroke-width="1.4"/>
+  </g>
+  <text x="92" y="250" text-anchor="middle" font-size="11" font-weight="700" fill="#1a3a6e">job_description.txt</text>
+  <text x="92" y="266" text-anchor="middle" font-size="9" fill="#3b5998">Raw JD text</text>
+
+  <!-- Candidate Parser -->
+  <g filter="url(#sh)">
+    <rect x="180" y="98" width="204" height="120" rx="6" fill="#fff2cc" stroke="#d6b656" stroke-width="1.4"/>
+  </g>
+  <text x="282" y="120" text-anchor="middle" font-size="11" font-weight="700" fill="#7d5a00">Candidate Parser</text>
+  <text x="282" y="135" text-anchor="middle" font-size="9" fill="#666">src/parsers/candidate.py</text>
+  <text x="282" y="156" text-anchor="middle" font-size="9" fill="#444">· Maps redrob_signals fields</text>
+  <text x="282" y="171" text-anchor="middle" font-size="9" fill="#444">· Derives career stats + consulting flag</text>
+  <text x="282" y="186" text-anchor="middle" font-size="9" fill="#444">· Builds embedding_text (career-first)</text>
+  <text x="282" y="201" text-anchor="middle" font-size="9" fill="#444">· stdlib-only (rank-time safe)</text>
+
+  <!-- JD Parser -->
+  <g filter="url(#sh)">
+    <rect x="180" y="232" width="204" height="72" rx="6" fill="#fff2cc" stroke="#d6b656" stroke-width="1.4"/>
+  </g>
+  <text x="282" y="252" text-anchor="middle" font-size="11" font-weight="700" fill="#7d5a00">JD Parser  (LLM)</text>
+  <text x="282" y="267" text-anchor="middle" font-size="9" fill="#666">src/parsers/jd.py</text>
+  <text x="282" y="283" text-anchor="middle" font-size="9" fill="#444">· Extracts skills · YoE range · disqualifiers</text>
+  <text x="282" y="297" text-anchor="middle" font-size="9" fill="#444">· Keyword fallback if no API key</text>
+
+  <!-- LLM badge -->
+  <g filter="url(#sh)">
+    <rect x="186" y="308" width="192" height="22" rx="11" fill="#f8cecc" stroke="#b85450" stroke-width="1.2"/>
+  </g>
+  <text x="282" y="323" text-anchor="middle" font-size="9" font-weight="700" fill="#7b2d28">☁ Claude Haiku / Gemini Flash · pre-compute only</text>
+
+  <!-- Embedder -->
+  <g filter="url(#sh)">
+    <rect x="408" y="98" width="176" height="120" rx="6" fill="#d5e8d4" stroke="#82b366" stroke-width="1.4"/>
+  </g>
+  <text x="496" y="120" text-anchor="middle" font-size="11" font-weight="700" fill="#2d6a4f">Embedder</text>
+  <text x="496" y="135" text-anchor="middle" font-size="9" fill="#666">src/embedder.py</text>
+  <text x="496" y="156" text-anchor="middle" font-size="9" fill="#444">BAAI/bge-base-en-v1.5</text>
+  <text x="496" y="171" text-anchor="middle" font-size="9" fill="#444">768-dim · L2-normalised</text>
+  <text x="496" y="186" text-anchor="middle" font-size="9" fill="#444">batch_size = 256 · CPU/MPS</text>
+  <text x="496" y="201" text-anchor="middle" font-size="9" fill="#888">~430 MB model · cached once</text>
+
+  <!-- FAISS Index Builder -->
+  <g filter="url(#sh)">
+    <rect x="608" y="104" width="176" height="108" rx="6" fill="#d5e8d4" stroke="#82b366" stroke-width="1.4"/>
+  </g>
+  <text x="696" y="125" text-anchor="middle" font-size="11" font-weight="700" fill="#2d6a4f">FAISS Index Builder</text>
+  <text x="696" y="140" text-anchor="middle" font-size="9" fill="#666">src/index.py</text>
+  <text x="696" y="161" text-anchor="middle" font-size="9" fill="#444">IndexFlatIP (cosine via IP)</text>
+  <text x="696" y="176" text-anchor="middle" font-size="9" fill="#444">100K × 768 ≈ 295 MB RAM</text>
+  <text x="696" y="191" text-anchor="middle" font-size="9" fill="#444">Exact search · no HNSW needed</text>
+
+  <!-- Disk Artifacts -->
+  <g filter="url(#sh)">
+    <rect x="808" y="92" width="214" height="176" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.4"/>
+  </g>
+  <text x="915" y="113" text-anchor="middle" font-size="11" font-weight="700" fill="#333">Disk Artifacts</text>
+  <text x="915" y="128" text-anchor="middle" font-size="9" fill="#666">data/index/  (gitignored)</text>
+  <line x1="818" y1="136" x2="1012" y2="136" stroke="#ccc" stroke-width="1"/>
+  <text x="915" y="155" text-anchor="middle" font-size="10" fill="#444">candidates.faiss</text>
+  <text x="915" y="173" text-anchor="middle" font-size="10" fill="#444">candidate_ids.json</text>
+  <text x="915" y="191" text-anchor="middle" font-size="10" fill="#444">parsed_candidates.jsonl</text>
+  <text x="915" y="209" text-anchor="middle" font-size="10" fill="#444">parsed_jd.json</text>
+  <text x="915" y="240" text-anchor="middle" font-size="9" fill="#888" font-style="italic">loaded at startup · &lt; 1 s</text>
+
+  <!-- Lane 1 arrows -->
+  <line x1="156" y1="138" x2="180" y2="138" stroke="#6c8ebf" stroke-width="1.6" marker-end="url(#ah)"/>
+  <line x1="156" y1="254" x2="180" y2="254" stroke="#6c8ebf" stroke-width="1.6" marker-end="url(#ah)"/>
+  <line x1="282" y1="304" x2="282" y2="308" stroke="#b85450" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ah)"/>
+  <line x1="384" y1="158" x2="408" y2="158" stroke="#82b366" stroke-width="1.6" marker-end="url(#ah)"/>
+  <line x1="584" y1="158" x2="608" y2="158" stroke="#82b366" stroke-width="1.6" marker-end="url(#ah)"/>
+  <line x1="784" y1="158" x2="808" y2="158" stroke="#82b366" stroke-width="1.6" marker-end="url(#ah)"/>
+  <polyline points="384,290 796,290 796,209 808,209" fill="none" stroke="#d6b656" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+  <text x="566" y="285" text-anchor="middle" font-size="8.5" fill="#a08000" font-style="italic">parsed_jd.json</text>
+
+  <!-- Handoff -->
+  <text x="560" y="354" text-anchor="middle" font-size="9.5" fill="#555" font-style="italic">
+    ↓   rank.py loads all artifacts from data/index/ at startup — zero re-embedding   ↓
+  </text>
+
+  <!-- ════════════════════════════════════════════════════════
+       LANE 2 — RANKING STEP
+  ════════════════════════════════════════════════════════ -->
+  <rect x="16" y="362" width="1088" height="384" rx="10"
+        fill="#eafaf1" stroke="#27ae60" stroke-width="1.5" opacity=".55"/>
+  <text x="32" y="384" font-size="11" font-weight="700" fill="#145a32">
+    RANKING STEP  ·  ≤ 5 min  ·  CPU only  ·  NO LLM  ·  NO network  —  enforced by hackathon Docker sandbox
+  </text>
+
+  <!-- Left column: Load → Embed → ANN -->
+  <g filter="url(#sh)"><rect x="28" y="398" width="152" height="58" rx="6" fill="#d5e8d4" stroke="#82b366" stroke-width="1.4"/></g>
+  <text x="104" y="421" text-anchor="middle" font-size="11" font-weight="700" fill="#2d6a4f">Load Index</text>
+  <text x="104" y="436" text-anchor="middle" font-size="9" fill="#666">src/index.py</text>
+  <text x="104" y="450" text-anchor="middle" font-size="9" fill="#444">FAISS + IDs · &lt; 1 s</text>
+
+  <g filter="url(#sh)"><rect x="28" y="476" width="152" height="58" rx="6" fill="#d5e8d4" stroke="#82b366" stroke-width="1.4"/></g>
+  <text x="104" y="499" text-anchor="middle" font-size="11" font-weight="700" fill="#2d6a4f">Embed JD</text>
+  <text x="104" y="514" text-anchor="middle" font-size="9" fill="#666">Embedder.embed_text()</text>
+  <text x="104" y="528" text-anchor="middle" font-size="9" fill="#444">No LLM · ~5 ms</text>
+
+  <g filter="url(#sh)"><rect x="28" y="554" width="152" height="58" rx="6" fill="#d5e8d4" stroke="#82b366" stroke-width="1.4"/></g>
+  <text x="104" y="577" text-anchor="middle" font-size="11" font-weight="700" fill="#2d6a4f">ANN Search</text>
+  <text x="104" y="592" text-anchor="middle" font-size="9" fill="#666">FAISS IndexFlatIP</text>
+  <text x="104" y="606" text-anchor="middle" font-size="9" fill="#444">JD vec → top-500 · ~200 ms</text>
+
+  <line x1="104" y1="456" x2="104" y2="476" stroke="#27ae60" stroke-width="1.6" marker-end="url(#ah)"/>
+  <line x1="104" y1="534" x2="104" y2="554" stroke="#27ae60" stroke-width="1.6" marker-end="url(#ah)"/>
+
+  <!-- Scorer container -->
+  <rect x="200" y="374" width="560" height="364" rx="8" fill="#fffde7" stroke="#f9a825" stroke-width="1.5" opacity=".9"/>
+  <text x="480" y="394" text-anchor="middle" font-size="11" font-weight="700" fill="#5d4037">
+    Multi-Signal Ranker  ·  src/ranker.py
+  </text>
+
+  <!-- ANN → scorers -->
+  <polyline points="180,583 192,583 192,427 214,427" fill="none" stroke="#27ae60" stroke-width="1.6" marker-end="url(#ah)"/>
+  <text x="300" y="412" text-anchor="middle" font-size="8.5" fill="#145a32" font-style="italic">top-500 IDs + cosine</text>
+
+  <!-- Scorer rows (Col A) -->
+  <g filter="url(#sh)"><rect x="214" y="406" width="190" height="42" rx="5" fill="#bbdefb" stroke="#1976d2" stroke-width="1.1"/></g>
+  <text x="309" y="423" text-anchor="middle" font-size="11" font-weight="700" fill="#0d47a1">Semantic  ·  40%</text>
+  <text x="309" y="438" text-anchor="middle" font-size="8.5" fill="#1565c0">FAISS cosine similarity</text>
+
+  <g filter="url(#sh)"><rect x="214" y="454" width="190" height="42" rx="5" fill="#bbdefb" stroke="#1976d2" stroke-width="1.1"/></g>
+  <text x="309" y="471" text-anchor="middle" font-size="11" font-weight="700" fill="#0d47a1">Role-Fit  ·  20%</text>
+  <text x="309" y="486" text-anchor="middle" font-size="8.5" fill="#1565c0">title · company · location · YoE</text>
+
+  <g filter="url(#sh)"><rect x="214" y="502" width="190" height="42" rx="5" fill="#bbdefb" stroke="#1976d2" stroke-width="1.1"/></g>
+  <text x="309" y="519" text-anchor="middle" font-size="11" font-weight="700" fill="#0d47a1">Skill Depth  ·  15%</text>
+  <text x="309" y="534" text-anchor="middle" font-size="8.5" fill="#1565c0">proficiency × duration · RapidFuzz</text>
+
+  <g filter="url(#sh)"><rect x="214" y="550" width="190" height="42" rx="5" fill="#bbdefb" stroke="#1976d2" stroke-width="1.1"/></g>
+  <text x="309" y="567" text-anchor="middle" font-size="11" font-weight="700" fill="#0d47a1">Behavioral  ·  15%</text>
+  <text x="309" y="582" text-anchor="middle" font-size="8.5" fill="#1565c0">recency · response rate · notice</text>
+
+  <g filter="url(#sh)"><rect x="214" y="598" width="190" height="42" rx="5" fill="#bbdefb" stroke="#1976d2" stroke-width="1.1"/></g>
+  <text x="309" y="615" text-anchor="middle" font-size="11" font-weight="700" fill="#0d47a1">Career  ·  10%</text>
+  <text x="309" y="630" text-anchor="middle" font-size="8.5" fill="#1565c0">velocity · stability · hidden-gem</text>
+
+  <!-- Fusion (Col B, tall) -->
+  <g filter="url(#sh)"><rect x="420" y="406" width="120" height="234" rx="6" fill="#ffe0b2" stroke="#e65100" stroke-width="1.4"/></g>
+  <text x="480" y="500" text-anchor="middle" font-size="11" font-weight="700" fill="#7b3105">Weighted</text>
+  <text x="480" y="515" text-anchor="middle" font-size="11" font-weight="700" fill="#7b3105">Fusion</text>
+  <text x="480" y="536" text-anchor="middle" font-size="8" fill="#bf360c">Σ weightᵢ × scoreᵢ</text>
+  <text x="480" y="550" text-anchor="middle" font-size="8" fill="#bf360c">= 1.0</text>
+
+  <!-- 5 scorers → fusion -->
+  <line x1="404" y1="427" x2="420" y2="427" stroke="#1976d2" stroke-width="1.4" marker-end="url(#ah)"/>
+  <line x1="404" y1="475" x2="420" y2="475" stroke="#1976d2" stroke-width="1.4" marker-end="url(#ah)"/>
+  <line x1="404" y1="523" x2="420" y2="523" stroke="#1976d2" stroke-width="1.4" marker-end="url(#ah)"/>
+  <line x1="404" y1="571" x2="420" y2="571" stroke="#1976d2" stroke-width="1.4" marker-end="url(#ah)"/>
+  <line x1="404" y1="619" x2="420" y2="619" stroke="#1976d2" stroke-width="1.4" marker-end="url(#ah)"/>
+
+  <!-- Col C pipeline: Honeypot → Sort → Reasoning -->
+  <g filter="url(#sh)"><rect x="556" y="406" width="190" height="74" rx="6" fill="#f8cecc" stroke="#b85450" stroke-width="1.3"/></g>
+  <text x="651" y="426" text-anchor="middle" font-size="11" font-weight="700" fill="#7b2d28">Honeypot Detector</text>
+  <text x="651" y="441" text-anchor="middle" font-size="9" fill="#922b21">src/honeypot.py</text>
+  <text x="651" y="455" text-anchor="middle" font-size="9" fill="#444">≥ 2 consistency signals</text>
+  <text x="651" y="469" text-anchor="middle" font-size="9" fill="#444">→ composite score = 0.0</text>
+
+  <g filter="url(#sh)"><rect x="556" y="502" width="190" height="60" rx="6" fill="#c8e6c9" stroke="#388e3c" stroke-width="1.3"/></g>
+  <text x="651" y="524" text-anchor="middle" font-size="11" font-weight="700" fill="#1b5e20">Sort → Top-100</text>
+  <text x="651" y="539" text-anchor="middle" font-size="9" fill="#2e7d32">non-increasing scores enforced</text>
+  <text x="651" y="553" text-anchor="middle" font-size="9" fill="#2e7d32">tie-break: candidate_id ↑</text>
+
+  <g filter="url(#sh)"><rect x="556" y="584" width="190" height="74" rx="6" fill="#fff9c4" stroke="#f9a825" stroke-width="1.3"/></g>
+  <text x="651" y="604" text-anchor="middle" font-size="11" font-weight="700" fill="#5d4037">Reasoning Generator</text>
+  <text x="651" y="619" text-anchor="middle" font-size="9" fill="#666">src/reasoning.py</text>
+  <text x="651" y="633" text-anchor="middle" font-size="9" fill="#444">template-based · NO LLM</text>
+  <text x="651" y="647" text-anchor="middle" font-size="9" fill="#444">grounded in candidate data</text>
+
+  <!-- fusion → sort ; honeypot ⊣ fusion ; sort → reasoning -->
+  <polyline points="540,523 548,523 548,532 556,532" fill="none" stroke="#388e3c" stroke-width="1.6" marker-end="url(#ah)"/>
+  <line x1="556" y1="443" x2="540" y2="443" stroke="#b85450" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ah)"/>
+  <text x="548" y="400" text-anchor="middle" font-size="8" fill="#922b21" font-style="italic">zero-out</text>
+  <line x1="651" y1="562" x2="651" y2="584" stroke="#388e3c" stroke-width="1.6" marker-end="url(#ah)"/>
+
+  <!-- reasoning → submission -->
+  <line x1="651" y1="658" x2="651" y2="800" stroke="#e67e22" stroke-width="1.8" marker-end="url(#ah)"/>
+  <text x="662" y="700" font-size="9" fill="#784212" font-style="italic">top-100 ranked</text>
+
+  <!-- Right rail: weights + hackathon metric -->
+  <rect x="778" y="398" width="312" height="158" rx="6" fill="#ffffff" stroke="#aaa" stroke-width="1" stroke-dasharray="5 4"/>
+  <text x="792" y="418" font-size="10" font-weight="700" fill="#555">Scoring weights  (sum = 1.0)</text>
+  <rect x="792" y="428" width="9" height="9" rx="2" fill="#bbdefb" stroke="#1976d2" stroke-width=".8"/>
+  <text x="808" y="437" font-size="10" fill="#333">Semantic similarity</text><text x="1076" y="437" text-anchor="end" font-size="10" font-weight="700" fill="#0d47a1">40%</text>
+  <rect x="792" y="447" width="9" height="9" rx="2" fill="#bbdefb" stroke="#1976d2" stroke-width=".8"/>
+  <text x="808" y="456" font-size="10" fill="#333">Role-fit (structural)</text><text x="1076" y="456" text-anchor="end" font-size="10" font-weight="700" fill="#0d47a1">20%</text>
+  <rect x="792" y="466" width="9" height="9" rx="2" fill="#bbdefb" stroke="#1976d2" stroke-width=".8"/>
+  <text x="808" y="475" font-size="10" fill="#333">Skill depth</text><text x="1076" y="475" text-anchor="end" font-size="10" font-weight="700" fill="#0d47a1">15%</text>
+  <rect x="792" y="485" width="9" height="9" rx="2" fill="#bbdefb" stroke="#1976d2" stroke-width=".8"/>
+  <text x="808" y="494" font-size="10" fill="#333">Behavioral signals</text><text x="1076" y="494" text-anchor="end" font-size="10" font-weight="700" fill="#0d47a1">15%</text>
+  <rect x="792" y="504" width="9" height="9" rx="2" fill="#bbdefb" stroke="#1976d2" stroke-width=".8"/>
+  <text x="808" y="513" font-size="10" fill="#333">Career trajectory</text><text x="1076" y="513" text-anchor="end" font-size="10" font-weight="700" fill="#0d47a1">10%</text>
+  <line x1="792" y1="524" x2="1076" y2="524" stroke="#eee" stroke-width="1"/>
+  <text x="792" y="540" font-size="8.5" fill="#888" font-style="italic">Composite = 0.40·sem + 0.20·role + 0.15·skill</text>
+  <text x="792" y="551" font-size="8.5" fill="#888" font-style="italic">+ 0.15·beh + 0.10·career   ·   honeypot ⇒ 0.0</text>
+
+  <rect x="778" y="572" width="312" height="150" rx="6" fill="#f4ecfa" stroke="#9673a6" stroke-width="1.2"/>
+  <text x="792" y="592" font-size="10" font-weight="700" fill="#5b2c83">Hackathon scoring metric</text>
+  <text x="792" y="613" font-size="10" fill="#333">NDCG@10</text><text x="1076" y="613" text-anchor="end" font-size="10" font-weight="700" fill="#5b2c83">0.50</text>
+  <text x="792" y="632" font-size="10" fill="#333">NDCG@50</text><text x="1076" y="632" text-anchor="end" font-size="10" font-weight="700" fill="#5b2c83">0.30</text>
+  <text x="792" y="651" font-size="10" fill="#333">MAP</text><text x="1076" y="651" text-anchor="end" font-size="10" font-weight="700" fill="#5b2c83">0.15</text>
+  <text x="792" y="670" font-size="10" fill="#333">P@10</text><text x="1076" y="670" text-anchor="end" font-size="10" font-weight="700" fill="#5b2c83">0.05</text>
+  <line x1="792" y1="681" x2="1076" y2="681" stroke="#e3d4f0" stroke-width="1"/>
+  <text x="792" y="698" font-size="9" fill="#6a4a8a" font-style="italic">Top-10 quality = 50% of final score</text>
+  <text x="792" y="712" font-size="9" fill="#6a4a8a" font-style="italic">honeypots &gt; 10% of top-100 ⇒ disqualified</text>
+
+  <!-- ════════════════════════════════════════════════════════
+       LANE 3 — SUBMISSION OUTPUT
+  ════════════════════════════════════════════════════════ -->
+  <rect x="16" y="764" width="1088" height="84" rx="10"
+        fill="#fff3e0" stroke="#e67e22" stroke-width="1.5" opacity=".6"/>
+  <text x="32" y="785" font-size="11" font-weight="700" fill="#784212">
+    SUBMISSION OUTPUT  ·  spec columns: candidate_id, rank, score, reasoning
+  </text>
+
+  <g filter="url(#sh)"><rect x="320" y="800" width="408" height="40" rx="6" fill="#ffe6cc" stroke="#d79b00" stroke-width="2"/></g>
+  <text x="524" y="817" text-anchor="middle" font-size="12" font-weight="700" fill="#7d3c00">submission.csv</text>
+  <text x="524" y="832" text-anchor="middle" font-size="9" fill="#5d2e00">candidate_id · rank · score · reasoning  —  exactly 100 rows · UTF-8 · non-increasing</text>
+
+  <g filter="url(#sh)"><rect x="760" y="800" width="330" height="40" rx="6" fill="#e8eaf6" stroke="#7986cb" stroke-width="1.4"/></g>
+  <text x="925" y="817" text-anchor="middle" font-size="11" font-weight="700" fill="#283593">validate_submission.py</text>
+  <text x="925" y="832" text-anchor="middle" font-size="9" fill="#444">100 rows · ranks 1-100 · IDs exist · no empty reasoning</text>
+
+  <line x1="728" y1="820" x2="760" y2="820" stroke="#7986cb" stroke-width="1.6" marker-end="url(#ah)"/>
+</svg>
