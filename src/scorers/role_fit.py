@@ -24,6 +24,9 @@ from src.config import (
     INDIA_TIER1_CITIES,
     PRODUCT_INDUSTRIES,
     SERVICES_INDUSTRIES,
+    YOE_OVER_PENALTY_FLOOR,
+    YOE_OVER_PENALTY_PER_YEAR,
+    YOE_UNDER_PENALTY_PER_YEAR,
 )
 
 
@@ -109,7 +112,7 @@ class RoleFitScorer:
             return 1.0
         if yoe < min_yoe:
             gap = min_yoe - yoe
-            return max(0.0, 1.0 - gap * 0.15)
+            return max(0.0, 1.0 - gap * YOE_UNDER_PENALTY_PER_YEAR)
         # Over-qualified
         gap = yoe - max_yoe
-        return max(0.5, 1.0 - gap * 0.05)  # mild penalty for over-exp
+        return max(YOE_OVER_PENALTY_FLOOR, 1.0 - gap * YOE_OVER_PENALTY_PER_YEAR)

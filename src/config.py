@@ -111,6 +111,13 @@ SERVICES_INDUSTRIES: frozenset[str] = frozenset({
     "it services", "consulting", "staffing", "outsourcing", "bpo",
 })
 
+# YoE-band penalties (role-fit sub-score). The JD band is min..max years.
+# Under-floor candidates are penalised steeply — a sub-5yr profile is a weaker
+# fit for a 5-9yr senior role and should not sit in the top-10 on skills alone.
+YOE_UNDER_PENALTY_PER_YEAR: float = 0.35   # slope below min band (was 0.15 — too soft)
+YOE_OVER_PENALTY_PER_YEAR: float = 0.08    # slope above max band
+YOE_OVER_PENALTY_FLOOR: float = 0.40       # over-qualified never scores below this
+
 # ── Location scorer ───────────────────────────────────────────────────────────
 INDIA_TIER1_CITIES: frozenset[str] = frozenset({
     "pune", "noida", "hyderabad", "mumbai", "bangalore", "bengaluru",
