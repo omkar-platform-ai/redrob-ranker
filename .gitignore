@@ -28,3 +28,8 @@ venv/
 # Tools
 .pytest_cache/
 .ruff_cache/
+
+# Claude
+headroom_memory.db
+.serena
+redrob-hackathon-dev.skill
