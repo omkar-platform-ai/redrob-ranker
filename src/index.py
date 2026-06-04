@@ -13,6 +13,11 @@ import json
 import logging
 from pathlib import Path
 
+# faiss and torch each bundle their own libomp; on macOS, initialising faiss's OpenMP
+# runtime before torch's segfaults on the first CPU parallel region (the JD encode).
+# Importing torch first makes both reuse one already-initialised runtime. This is a
+# behaviour-neutral no-op on Linux/the sandbox, where the linker shares a single libomp.
+import torch  # noqa: F401  -- MUST precede `import faiss`
 import faiss
 import numpy as np
 
