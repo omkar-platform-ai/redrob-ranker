@@ -71,7 +71,7 @@ def main() -> None:
     # ── Embed JD (no LLM — just the sentence-transformer model) ──────────────
     logger.info("Embedding JD...")
     from src.embedder import get_embedder
-    embedder = get_embedder()
+    embedder = get_embedder(device="cpu")  # rank step is CPU-only (submission_spec §3)
     jd_vec = embedder.embed_text(parsed_jd.to_embedding_text())
 
     # ── ANN search ────────────────────────────────────────────────────────────

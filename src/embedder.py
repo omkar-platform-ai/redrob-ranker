@@ -20,10 +20,13 @@ _embedder_instance: "Embedder | None" = None
 
 
 class Embedder:
-    def __init__(self) -> None:
-        logger.info("Loading embedding model: %s (first run downloads ~430MB)", EMBEDDING_MODEL)
-        self.model = SentenceTransformer(EMBEDDING_MODEL)
-        logger.info("Model loaded")
+    def __init__(self, device: str | None = "cpu") -> None:
+        logger.info(
+            "Loading embedding model: %s (device=%s, first run downloads ~430MB)",
+            EMBEDDING_MODEL, device or "auto",
+        )
+        self.model = SentenceTransformer(EMBEDDING_MODEL, device=device)
+        logger.info("Model loaded on device=%s", self.model.device)
 
     def embed_text(self, text: str) -> np.ndarray:
         return self._embed_cached(text)
@@ -45,8 +48,8 @@ class Embedder:
         )
 
 
-def get_embedder() -> Embedder:
+def get_embedder(device: str | None = "cpu") -> Embedder:
     global _embedder_instance
     if _embedder_instance is None:
-        _embedder_instance = Embedder()
+        _embedder_instance = Embedder(device=device)
     return _embedder_instance

@@ -103,7 +103,7 @@ def main() -> None:
     # ── Step 2: Load embedding model ONCE ────────────────────────────────────
     logger.info("=== Step 2/4: Loading embedding model (downloads ~430MB on first run) ===")
     from src.embedder import get_embedder
-    embedder = get_embedder()
+    embedder = get_embedder(device=None)  # auto-select MPS/CUDA — pre-compute is unconstrained
 
     # ── Step 3: Stream candidates, embed in chunks ────────────────────────────
     logger.info("=== Step 3/4: Streaming + embedding candidates in chunks of %d ===",
