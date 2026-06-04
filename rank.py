@@ -20,9 +20,16 @@ Output:
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from pathlib import Path
+
+# Rank step runs with NO network access (submission_spec §3). Force HuggingFace
+# to load the embedding model from the local cache populated by precompute.py —
+# without this, SentenceTransformer() pings huggingface.co for metadata on load.
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
 logging.basicConfig(
     level=logging.INFO,
