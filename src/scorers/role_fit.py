@@ -7,7 +7,7 @@ for genuine fit than skill list membership.
 Signals:
   1. Title match     (40%) — is the title in the AI/ML engineering family?
   2. Company type    (35%) — product company vs. services/consulting
-  3. Location        (15%) — India tier-1 city, India, or abroad + relocation
+  3. Location        (15%) — hub tier + domestic relocation intent, scaled by work-mode fit
   4. YoE band fit    (10%) — is experience within the JD's stated range?
 
 Hard penalties (multipliers, not additive):
@@ -22,8 +22,17 @@ from src.config import (
     CONSULTING_ONLY_MULTIPLIER,
     DISQUALIFYING_TITLES,
     INDIA_TIER1_CITIES,
+    INDIA_TIER2_CITIES,
+    LOCATION_ABROAD,
+    LOCATION_ABROAD_RELOCATE,
+    LOCATION_INDIA_OTHER,
+    LOCATION_INDIA_OTHER_RELOCATE,
+    LOCATION_TIER1,
+    LOCATION_TIER2,
+    LOCATION_TIER2_RELOCATE,
     PRODUCT_INDUSTRIES,
     SERVICES_INDUSTRIES,
+    WORK_MODE_FIT,
     YOE_OVER_PENALTY_FLOOR,
     YOE_OVER_PENALTY_PER_YEAR,
     YOE_UNDER_PENALTY_PER_YEAR,
@@ -94,17 +103,28 @@ class RoleFitScorer:
         return 0.35  # mixed / unclear industry
 
     def _location_score(self, candidate: dict) -> float:
-        """India tier-1 city → 1.0; India → 0.8; abroad + relocation → 0.6; else → 0.3."""
+        """India hub proximity scores highest; relocation willingness lifts non-Tier-1
+        domestic candidates toward the hub; abroad scored by relocation intent. The
+        result is scaled by work-mode fit for the hybrid role (remote-only softened)."""
+        bsig = candidate.get("behavioral_signals", {})
         country = (candidate.get("country") or "").lower()
         location = (candidate.get("location") or "").lower()
-        willing = candidate.get("behavioral_signals", {}).get("willing_to_relocate", False)
+        willing = bsig.get("willing_to_relocate", False)
 
         if country in ("india", "in"):
-            city_match = any(city in location for city in INDIA_TIER1_CITIES)
-            return 1.0 if city_match else 0.80
-        if willing:
-            return 0.60
-        return 0.30
+            if any(city in location for city in INDIA_TIER1_CITIES):
+                base = LOCATION_TIER1
+            elif any(city in location for city in INDIA_TIER2_CITIES):
+                base = LOCATION_TIER2_RELOCATE if willing else LOCATION_TIER2
+            else:
+                base = LOCATION_INDIA_OTHER_RELOCATE if willing else LOCATION_INDIA_OTHER
+        elif willing:
+            base = LOCATION_ABROAD_RELOCATE
+        else:
+            base = LOCATION_ABROAD
+
+        mode = (bsig.get("preferred_work_mode") or "flexible").lower()
+        return base * WORK_MODE_FIT.get(mode, 1.0)
 
     def _yoe_band_score(self, yoe: float, min_yoe: int, max_yoe: int) -> float:
         """Score based on how well YoE fits the JD range."""

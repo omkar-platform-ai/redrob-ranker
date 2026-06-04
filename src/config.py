@@ -123,6 +123,37 @@ INDIA_TIER1_CITIES: frozenset[str] = frozenset({
     "pune", "noida", "hyderabad", "mumbai", "bangalore", "bengaluru",
     "delhi", "gurugram", "gurgaon", "chennai", "kolkata",
 })
+# Tier-2 Indian tech hubs — score between Tier-1 and the rest. Variants included
+# for substring matching (kochi/cochin, vizag/visakhapatnam, etc.).
+INDIA_TIER2_CITIES: frozenset[str] = frozenset({
+    "jaipur", "indore", "coimbatore", "chandigarh", "mohali", "kochi", "cochin",
+    "ahmedabad", "nagpur", "lucknow", "bhubaneswar", "trivandrum",
+    "thiruvananthapuram", "vizag", "visakhapatnam", "vadodara", "surat",
+    "mysore", "mysuru", "bhopal", "nashik", "mangalore", "mangaluru",
+    "vijayawada", "madurai",
+})
+
+# Location sub-score values (role-fit). India hub proximity scores highest;
+# willingness to relocate lifts non-Tier-1 domestic candidates toward the hub
+# (previously their relocation flag was ignored entirely). The tier/relocation
+# tier is monotonic — relocation only ever raises it.
+LOCATION_TIER1: float = 1.00
+LOCATION_TIER2_RELOCATE: float = 0.90
+LOCATION_TIER2: float = 0.85
+LOCATION_INDIA_OTHER_RELOCATE: float = 0.85
+LOCATION_INDIA_OTHER: float = 0.80      # unchanged baseline
+LOCATION_ABROAD_RELOCATE: float = 0.60  # unchanged
+LOCATION_ABROAD: float = 0.30           # unchanged
+
+# Work-mode fit for a HYBRID Pune/Noida role. hybrid/onsite/flexible all accept
+# hub presence; remote-only is a softer fit. Applied as a multiplier on the
+# location sub-score (default 1.0 for unknown values — never penalise missing data).
+WORK_MODE_FIT: dict[str, float] = {
+    "hybrid": 1.00,
+    "onsite": 1.00,
+    "flexible": 1.00,
+    "remote": 0.85,
+}
 
 # ── Honeypot detection ────────────────────────────────────────────────────────
 HONEYPOT_YOE_CAREER_RATIO_THRESHOLD: float = 1.35  # if claimed YoE > 1.35× sum(career months/12)
