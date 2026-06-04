@@ -34,10 +34,25 @@ Experience: 5-9 years (sweet spot: 6-8 years applied ML/AI at product companies)
 
 ## LOCATION scoring
 
-- India, tier-1 city (Pune/Noida/Bengaluru/Hyderabad/Mumbai/Delhi NCR): 1.0
-- India, any city: 0.80
-- Outside India, willing_to_relocate=true: 0.60
-- Outside India, not willing: 0.30
+Tier/relocation base (relocation never lowers a score; it lifts non-Tier-1
+domestic candidates toward the Pune/Noida hub):
+
+| Segment | not willing | willing_to_relocate |
+|---|---|---|
+| India, Tier-1 (Pune/Noida/Bengaluru/Hyderabad/Mumbai/Delhi NCR/Chennai/Kolkata) | 1.00 | 1.00 |
+| India, Tier-2 (Jaipur/Indore/Coimbatore/Chandigarh/Kochi/Ahmedabad/Nagpur/Lucknow/Bhubaneswar/…) | 0.85 | 0.90 |
+| India, other / Tier-3 | 0.80 | 0.85 |
+| Outside India | 0.30 | 0.60 |
+
+The base is then multiplied by the work-mode fit below.
+
+## WORK MODE scoring
+
+The role is **hybrid** (Pune/Noida). `preferred_work_mode` scales the location score:
+
+- hybrid / onsite / flexible: ×1.00 (accept hub presence)
+- remote: ×0.85 (softer fit for a hybrid role)
+- unknown/missing: ×1.00 (never penalise missing data)
 
 ## NOTICE PERIOD scoring
 
