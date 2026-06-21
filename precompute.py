@@ -38,6 +38,7 @@ logging.basicConfig(
 logger = logging.getLogger("precompute")
 
 DEFAULT_CHUNK_SIZE = 500  # ~150 MB peak per chunk; lower if still too heavy
+SAVE_EVERY_CHUNKS = 20    # persist index incrementally so an interrupt is resumable
 
 
 # ── streaming reader ──────────────────────────────────────────────────────────
@@ -67,6 +68,60 @@ def chunked(iterable, size):
         yield chunk
 
 
+def _resync_cache(cache_path: Path, keep_ids: set[str]) -> set[str]:
+    """Rewrite the parsed-candidate cache to hold exactly one row per id in
+    `keep_ids`, dropping rows for ids not in the index and any duplicates.
+
+    Used on --resume to reconcile the cache with the loaded index after an
+    interrupted run (the cache is flushed before each embed, so it can run
+    ahead of the index). Returns the set of candidate_ids kept.
+    """
+    tmp_path = cache_path.with_suffix(".jsonl.tmp")
+    written: set[str] = set()
+    with open(cache_path, encoding="utf-8") as fin, \
+            open(tmp_path, "w", encoding="utf-8") as fout:
+        for line in fin:
+            line = line.strip()
+            if not line:
+                continue
+            cid = json.loads(line)["candidate_id"]
+            if cid in keep_ids and cid not in written:
+                written.add(cid)
+                fout.write(line + "\n")
+    tmp_path.replace(cache_path)
+    return written
+
+
+def _repair_cache_rows(candidates_path: Path, cache_path: Path,
+                       missing_ids: set[str]) -> int:
+    """Append cache rows for ids that are in the index but absent from the cache.
+
+    The vectors for these ids already exist in the index, so no re-embedding is
+    needed — only their parsed metadata is rebuilt. We stream the raw file and
+    re-parse just the missing ids (parser is stdlib + dateutil, cheap). Writes
+    the same row shape as the main loop. Returns the number of rows written.
+    """
+    if not missing_ids:
+        return 0
+
+    from src.parsers.candidate import parse_redrob_candidate
+
+    written: set[str] = set()
+    with open(cache_path, "a", encoding="utf-8") as cache_f:
+        for r in stream_jsonl(candidates_path):
+            cid = str(r.get("candidate_id", ""))
+            if cid not in missing_ids or cid in written:
+                continue
+            c = parse_redrob_candidate(r)
+            row = {k: v for k, v in c.items() if k != "embedding_text"}
+            row["skills_with_meta"] = c.get("skills_with_meta", [])
+            cache_f.write(json.dumps(row) + "\n")
+            written.add(cid)
+            if len(written) == len(missing_ids):
+                break
+    return len(written)
+
+
 # ── main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -87,7 +142,7 @@ def main() -> None:
             logger.error("File not found: %s", p)
             sys.exit(1)
 
-    from src.config import INDEX_DIR, PARSED_JD_PATH, EMBEDDING_DIM
+    from src.config import INDEX_DIR, PARSED_JD_PATH, EMBEDDING_DIM, FAISS_INDEX_PATH
     INDEX_DIR.mkdir(parents=True, exist_ok=True)
 
     # ── Step 1: Parse JD ─────────────────────────────────────────────────────
@@ -110,45 +165,76 @@ def main() -> None:
                 args.chunk_size)
 
     import faiss
-    import numpy as np
 
-    # Build an empty index we'll add to incrementally
-    index = faiss.IndexFlatIP(EMBEDDING_DIM)
-    all_ids: list[str] = []
+    from src.index import load_index, save_index
 
     parsed_cache_path = INDEX_DIR / "parsed_candidates.jsonl"
-    # Open cache file for writing (or appending if resuming)
-    cache_mode = "a" if args.resume else "w"
-    already_done = 0
 
-    if args.resume and parsed_cache_path.exists():
-        # Count already-processed candidates
-        with open(parsed_cache_path) as f:
-            already_done = sum(1 for l in f if l.strip())
-        logger.info("Resume mode: skipping first %d already-processed candidates", already_done)
+    # Resume reuses the existing index/ids as the source of truth; otherwise we
+    # start fresh. `seen_ids` drives dedup below — seeding it from the loaded
+    # index is what makes resume skip only already-EMBEDDED candidates.
+    if args.resume and FAISS_INDEX_PATH.exists() and parsed_cache_path.exists():
+        index, all_ids = load_index()
+        seen_ids: set[str] = set(all_ids)
+        logger.info("Resume mode: loaded existing index with %d vectors", index.ntotal)
+        # The cache is flushed before each embed, so it may run ahead of the index
+        # after an interrupt. Reconcile it to the index (drops stray/dup rows).
+        cached_ids = _resync_cache(parsed_cache_path, seen_ids)
+        logger.info("Resume mode: cache re-synced to %d rows matching the index",
+                    len(cached_ids))
+        # Conversely, the index may carry ids with no cache row (e.g. an old index
+        # segment reused on resume). Rebuild those rows from raw — no re-embedding,
+        # the vectors are already in the index.
+        missing = seen_ids - cached_ids
+        if missing:
+            repaired = _repair_cache_rows(candidates_path, parsed_cache_path, missing)
+            logger.info("Resume mode: repaired %d cache rows for indexed-but-uncached ids",
+                        repaired)
+            if repaired != len(missing):
+                logger.warning(
+                    "Resume mode: %d indexed ids not found in raw file — cache still short",
+                    len(missing) - repaired,
+                )
+        cache_mode = "a"
+    else:
+        index = faiss.IndexFlatIP(EMBEDDING_DIM)
+        all_ids = []
+        seen_ids = set()
+        cache_mode = "w"
 
     from src.parsers.candidate import parse_redrob_candidate
 
     t0 = time.perf_counter()
-    total_processed = 0
+    total_seen = 0
     skipped = 0
 
     with open(parsed_cache_path, cache_mode, encoding="utf-8") as cache_f:
         for chunk_idx, raw_chunk in enumerate(chunked(stream_jsonl(candidates_path), args.chunk_size)):
-            # Resume: skip chunks we already embedded
-            chunk_start = chunk_idx * args.chunk_size
-            if args.resume and chunk_start + len(raw_chunk) <= already_done:
-                skipped += len(raw_chunk)
+            total_seen += len(raw_chunk)
+
+            # Parse + dedup by candidate_id. Skips ids already embedded (resume)
+            # AND duplicate ids within the raw dataset — each id is embedded once.
+            parsed_chunk = []
+            for r in raw_chunk:
+                c = parse_redrob_candidate(r)
+                cid = c["candidate_id"]
+                if cid in seen_ids:
+                    skipped += 1
+                    continue
+                seen_ids.add(cid)
+                parsed_chunk.append(c)
+
+            if not parsed_chunk:
                 continue
 
-            # Parse chunk
-            parsed_chunk = [parse_redrob_candidate(r) for r in raw_chunk]
-
-            # Write parsed records to cache (line by line — no big list in RAM)
+            # Write parsed records to cache (line by line — no big list in RAM),
+            # flushing BEFORE the embed so an interrupt leaves cache >= index
+            # (the next --resume reconciles via _resync_cache).
             for c in parsed_chunk:
                 row = {k: v for k, v in c.items() if k != "embedding_text"}
                 row["skills_with_meta"] = c.get("skills_with_meta", [])
                 cache_f.write(json.dumps(row) + "\n")
+            cache_f.flush()
 
             # Embed chunk — larger batch = better MPS/GPU throughput
             texts = [c["embedding_text"] for c in parsed_chunk]
@@ -166,23 +252,46 @@ def main() -> None:
             # Free chunk memory explicitly
             del parsed_chunk, texts, vecs
 
-            total_processed += len(raw_chunk)
+            # Persist incrementally so an interrupted run is cleanly resumable.
+            if (chunk_idx + 1) % SAVE_EVERY_CHUNKS == 0:
+                save_index(index, all_ids)
+
             elapsed = time.perf_counter() - t0
-            rate = total_processed / elapsed
+            rate = len(all_ids) / elapsed if elapsed else 0.0
             logger.info(
-                "Chunk %d done — %d/~100K candidates (%.0f/s, ~%.0f min remaining)",
-                chunk_idx + 1,
-                total_processed + skipped,
-                rate,
-                max(0, (100_000 - total_processed - skipped) / max(1, rate) / 60),
+                "Chunk %d — embedded=%d skipped=%d seen=%d (%.0f/s)",
+                chunk_idx + 1, len(all_ids), skipped, total_seen, rate,
             )
 
-    logger.info("Embedded %d candidates total", len(all_ids))
+    logger.info("Embedded %d candidates total (skipped %d duplicates/already-done)",
+                len(all_ids), skipped)
 
     # ── Step 4: Save FAISS index ──────────────────────────────────────────────
     logger.info("=== Step 4/4: Saving FAISS index ===")
-    from src.index import save_index
+    # Invariant: one vector per unique candidate_id, index and id-list in lockstep.
+    assert index.ntotal == len(all_ids) == len(set(all_ids)), (
+        f"Coverage invariant broken: ntotal={index.ntotal}, "
+        f"ids={len(all_ids)}, unique={len(set(all_ids))}"
+    )
+    # Parity: every indexed id must have a cache row (rank.py scores from the cache).
+    # Guards against silent desync — e.g. an old index segment reused on resume.
+    cache_ids: set[str] = set()
+    with open(parsed_cache_path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                cache_ids.add(json.loads(line)["candidate_id"])
+    index_ids = set(all_ids)
+    assert cache_ids == index_ids, (
+        f"Cache↔index desync: in_index_not_cache={len(index_ids - cache_ids)}, "
+        f"in_cache_not_index={len(cache_ids - index_ids)}"
+    )
     save_index(index, all_ids)
+    if total_seen != len(all_ids):
+        logger.warning(
+            "Embedded %d unique of %d raw records seen (%d duplicates skipped).",
+            len(all_ids), total_seen, total_seen - len(all_ids),
+        )
 
     elapsed_total = time.perf_counter() - t0
     logger.info("✅ Pre-computation complete in %.1f min.", elapsed_total / 60)
