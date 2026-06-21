@@ -45,12 +45,13 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Rank candidates — CPU only, no LLM")
     parser.add_argument("--candidates", required=True, help="Path to candidates.jsonl[.gz]")
-    parser.add_argument("--jd", required=True, help="Path to job_description.txt")
+    # --jd is accepted for CLI compatibility but unused at rank time: the rank path
+    # reads the precomputed parsed_jd.json, never the raw JD. The spec repro command
+    # (submission_spec §10.3) omits --jd, so it must not be required.
+    parser.add_argument("--jd", required=False, default=None, help="Unused at rank time (see parsed_jd.json)")
     parser.add_argument("--out", default="submission.csv", help="Output CSV path")
     args = parser.parse_args()
 
-    candidates_path = Path(args.candidates)
-    jd_path = Path(args.jd)
     out_path = Path(args.out)
 
     # ── Load pre-computed index ───────────────────────────────────────────────
