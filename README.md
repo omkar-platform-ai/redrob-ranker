@@ -115,6 +115,51 @@ python validate_submission.py --submission submission.csv --candidates data/cand
 
 ---
 
+## Step 4 — Test in the sandbox (Stage 1)
+
+The sandbox is a self-contained Streamlit app (`scripts/demo_app.py`): it accepts **≤100 candidates** by upload, parses the JD with a fast keyword fallback (**no LLM**), builds the FAISS index **in-memory** from the upload, ranks, and offers a downloadable CSV. It needs no pre-computed artifacts and runs CPU-only.
+
+### Prepare a sample input (≤100 candidates)
+
+The full dataset is gitignored (not ours to publish), so carve off a small sample to upload — this also creates the `data/sample_candidates.json` the Dockerfile bakes into the image:
+
+```bash
+head -100 data/candidates.jsonl > data/sample_candidates.json
+```
+
+### Option A — Run Streamlit locally (fastest)
+
+```bash
+pip install -r requirements.txt
+streamlit run scripts/demo_app.py
+```
+
+Open <http://localhost:8501>, paste the JD (contents of `data/job_description.txt`), upload `data/sample_candidates.json`, click **🚀 Run Ranking**, then download `submission.csv`.
+
+### Option B — Docker (mirrors the HuggingFace Spaces runtime)
+
+```bash
+docker build -t redrob-ranker .      # bakes the embedding model into the image
+docker run -p 8501:8501 redrob-ranker
+```
+
+Open <http://localhost:8501>. The image sets `HF_HUB_OFFLINE=1` / `TRANSFORMERS_OFFLINE=1` and pre-downloads `BAAI/bge-base-en-v1.5` at **build** time, so ranking runs with **no network** — matching the Stage-3 constraints.
+
+### Option C — Deploy to HuggingFace Spaces
+
+1. Create a new Space → **SDK: Docker**.
+2. Push this repo; the root `Dockerfile` is used automatically.
+3. Commit a `data/sample_candidates.json` (or upload candidates at runtime) — the full `data/candidates.jsonl` is gitignored and must not be published.
+
+### What to verify in the sandbox
+
+- App loads, accepts a JD + ≤100 candidates
+- Produces a downloadable CSV with columns `candidate_id,rank,score,reasoning`
+- Top-20 preview shows ML/AI engineers with **non-increasing** scores
+- Full run completes in **< 5 min on CPU**
+
+---
+
 ## Key design decisions
 
 **Why FAISS over ChromaDB?** FAISS is a single binary with no server process — it loads from disk in under 1 second and runs fully in-process. Critical for the sandboxed Docker reproduction at Stage 3.
