@@ -1,7 +1,30 @@
 team_name: "Velocity Labs"
-participant_id: ""        # Fill from portal after registration
+participant_id: ""        # TODO(user): fill from portal after registration (§2 — also names the upload file <participant_id>.csv)
 github_repo: "https://github.com/omkar-aiaccelerate/redrob-ranker"
-sandbox_link: ""          # Fill after HuggingFace Spaces / Streamlit Cloud deploy
+sandbox_link: ""          # TODO(user): paste HuggingFace Spaces / Streamlit Cloud URL after deploy (§10.5)
+
+# ── Primary contact (§10.2) ────────────────────────────────────────────────────
+primary_contact:
+  name: "Omkar Sonawane"
+  email: "omkar.aiaccelerate@gmail.com"
+  phone: "+91-7719996288"
+
+# ── Team members (§10.2) ───────────────────────────────────────────────────────
+team_members:
+  - name: "Sagar Shinde"
+    role: "Backend Engineer"
+    email: "sagar.it01@gmail.com"
+    phone: "+91-9970375687"
+
+# ── Compute environment summary (§10.2) ────────────────────────────────────────
+# Dev machine that produced data/submission.csv. The rank step is built to fit the
+# spec's 16 GB CPU-only box with large margin; numbers below are measured locally.
+compute_environment: >
+  macOS, Apple M4 Pro, 48 GB RAM, Python 3.11.9. Rank step runs ~9 s CPU-only with
+  ~1.2 GB peak memory (293 MB FAISS index + 492 MB parsed-candidate cache + ~430 MB
+  embedding model) — ~13x under the 16 GB budget and ~33x under the 5 min budget.
+  Pre-computation embeds 100K candidates with BAAI/bge-base-en-v1.5 into a FAISS
+  IndexFlatIP. No LLM / GPU / network calls at rank time.
 
 ai_tools_used:
   - tool: "Claude (Anthropic)"
@@ -11,9 +34,10 @@ ai_tools_used:
 
 submission_notes: >
   Multi-signal ranking engine: semantic similarity (40%) + role-fit scoring
-  (20%) + proficiency-weighted skill match (15%) + behavioral signals (15%)
-  + career trajectory (10%). Pre-computation builds a FAISS flat-IP index
-  over 100K candidate embeddings. Ranking step loads the index, ANN-retrieves
-  top-500, scores each with pure-CPU math, detects honeypots via profile
-  consistency checks, and outputs exactly 100 rows in < 5 minutes.
-  No LLM calls during the ranking step.
+  (20%) + proficiency-weighted skill match (15%, blended with Redrob's measured
+  skill_assessment_scores) + behavioral signals (15%, incl. search appearances)
+  + career trajectory (10%). Pre-computation builds a FAISS flat-IP index over
+  100K candidate embeddings. Ranking step loads the index, ANN-retrieves top-500,
+  scores each with pure-CPU math, detects honeypots via profile consistency
+  checks, suppresses location-ineligible candidates, and outputs exactly 100 rows
+  in < 5 minutes. No LLM calls during the ranking step.

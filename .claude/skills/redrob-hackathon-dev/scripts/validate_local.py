@@ -3,7 +3,11 @@
 Usage: python .claude/skills/redrob-hackathon-dev/scripts/validate_local.py \
            --submission submission.csv --candidates data/candidates.jsonl
 """
-import argparse, csv, gzip, json, sys
+import argparse
+import csv
+import gzip
+import json
+import sys
 from pathlib import Path
 
 def load_ids(path):
@@ -72,12 +76,14 @@ def validate(submission_path, candidates_path):
     print()
     if errors:
         print(f'FAILED — {len(errors)} error(s):')
-        for e in errors: print(f'  • {e}')
+        for e in errors:
+            print(f'  • {e}')
     else:
         print('PASSED — submission looks good!')
     if warnings:
-        print(f'\nWarnings:')
-        for w in warnings: print(f'  • {w}')
+        print('\nWarnings:')
+        for w in warnings:
+            print(f'  • {w}')
     print(f'\nStats: {len(rows)} rows | score range: {min(scores):.4f}–{max(scores):.4f}')
     return len(errors) == 0
 

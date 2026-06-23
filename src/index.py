@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 
 # faiss and torch each bundle their own libomp; on macOS, initialising faiss's OpenMP
 # runtime before torch's segfaults on the first CPU parallel region (the JD encode).
@@ -54,7 +53,7 @@ def load_index() -> tuple[faiss.Index, list[str]]:
     if not FAISS_INDEX_PATH.exists():
         raise FileNotFoundError(
             f"FAISS index not found at {FAISS_INDEX_PATH}. "
-            "Run: python rank.py --precompute --candidates <path>"
+            "Run: python precompute.py --candidates <path> --jd <path>"
         )
     index = faiss.read_index(str(FAISS_INDEX_PATH))
     with open(CANDIDATE_IDS_PATH) as f:

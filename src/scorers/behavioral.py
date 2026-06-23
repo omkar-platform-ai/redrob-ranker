@@ -2,7 +2,7 @@
 
 Signal groups (weighted):
   1. Recency     (45%) — exponential decay on days since last active
-  2. Engagement  (30%) — applications, profile views, saved by recruiters
+  2. Engagement  (30%) — applications, profile views, saved-by-recruiters, search appearances
   3. Response    (15%) — recruiter_response_rate (strongest hiring proxy)
   4. Notice      (10%) — notice period (lower = easier to hire)
 
@@ -49,8 +49,13 @@ class BehavioralScorer:
         apps = min(s.get("applications_count", 0), 15) / 15
         views = min(s.get("profile_views_last_30d", 0), 120) / 120
         saved = min(s.get("saved_by_recruiters_30d", 0), 10) / 10
+        # Third recruiter-demand signal alongside views + saved.
+        search = min(s.get("search_appearances_last_30d", 0), 200) / 200
         open_to_work = 1.0 if s.get("open_to_work", False) else 0.0
-        return 0.30 * apps + 0.25 * views + 0.20 * saved + 0.25 * open_to_work
+        return (
+            0.25 * apps + 0.20 * views + 0.15 * saved
+            + 0.15 * search + 0.25 * open_to_work
+        )
 
     def _notice(self, days: int) -> float:
         """Lower notice period → easier to hire → higher score."""

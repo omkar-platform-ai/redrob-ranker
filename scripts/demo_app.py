@@ -1,7 +1,6 @@
 """Streamlit sandbox demo — accepts ≤100 candidates, runs full ranking pipeline."""
 
 import json
-import tempfile
 from pathlib import Path
 
 import streamlit as st
@@ -35,19 +34,17 @@ uploaded = st.file_uploader("Candidate JSONL (≤100 candidates)", type=["jsonl"
 if st.button("🚀 Run Ranking", type="primary", disabled=not (jd_text and uploaded)):
     with st.spinner("Parsing JD and ranking candidates..."):
         try:
-            import sys, os
+            import sys
             sys.path.insert(0, str(Path(__file__).parent.parent))
 
             raw_lines = uploaded.read().decode("utf-8").splitlines()
-            candidates_raw = [json.loads(l) for l in raw_lines if l.strip()]
+            candidates_raw = [json.loads(line) for line in raw_lines if line.strip()]
 
             from src.parsers.candidate import parse_redrob_candidate
             from src.parsers.jd import _keyword_fallback
             from src.embedder import get_embedder
             from src.index import build_index, query_index
             from src.ranker import RankingEngine
-            from src.config import TOP_K_FINAL
-            import numpy as np
 
             parsed_jd = _keyword_fallback(jd_text)  # fast fallback for demo
             embedder = get_embedder()
@@ -67,7 +64,8 @@ if st.button("🚀 Run Ranking", type="primary", disabled=not (jd_text and uploa
             engine = RankingEngine()
             ranked = engine.rank(cands_by_id, ann_results, parsed_jd)
 
-            import io, csv
+            import io
+            import csv
             buf = io.StringIO()
             writer = csv.DictWriter(buf, fieldnames=["candidate_id", "rank", "score", "reasoning"])
             writer.writeheader()

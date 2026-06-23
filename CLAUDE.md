@@ -33,7 +33,7 @@ python validate_submission.py --submission submission.csv --candidates data/cand
 ruff check .
 ```
 
-There are **no tests yet** (`tests/` is empty). `rank.py` self-validates output via `_sanity_check`; `validate_submission.py` checks every spec rule. Treat those as the success criteria.
+Tests live in `tests/` (27 tests across parser, scorers, honeypot, ranker, reasoning — run via `pytest tests/`). `rank.py` also self-validates output via `_sanity_check`; `validate_submission.py` checks every spec rule. Treat those as the success criteria.
 
 ## Pipeline flow
 

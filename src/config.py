@@ -85,6 +85,10 @@ SKILL_PROFICIENCY_WEIGHTS: dict[str, float] = {
 SKILL_REQUIRED_WEIGHT: float = 0.75
 SKILL_OPTIONAL_WEIGHT: float = 0.25
 SKILL_DURATION_CAP_MONTHS: int = 24   # score maxes at 2 years of use
+# Weight on Redrob's measured `assessment_score` when a skill has one (0 = ignore
+# the objective score, 1 = use it exclusively). 0.5 gives objective proficiency
+# equal say with self-declared proficiency + duration + endorsements.
+SKILL_ASSESSMENT_BLEND: float = 0.50
 
 # ── Role-fit scorer ───────────────────────────────────────────────────────────
 # Titles that signal genuine ML/AI engineering background
@@ -144,6 +148,11 @@ LOCATION_INDIA_OTHER_RELOCATE: float = 0.85
 LOCATION_INDIA_OTHER: float = 0.80      # unchanged baseline
 LOCATION_ABROAD_RELOCATE: float = 0.60  # unchanged
 LOCATION_ABROAD: float = 0.30           # unchanged
+# Composite-level suppression for abroad candidates UNWILLING to relocate: they are
+# effectively unhireable for this India-hybrid role, and the role-fit location tier
+# above (LOCATION_ABROAD × the 20% role_fit weight) alone cannot keep them out of the
+# top ranks. Abroad + willing-to-relocate and all India tiers are untouched.
+LOCATION_INELIGIBLE_MULTIPLIER: float = 0.50
 
 # Work-mode fit for a HYBRID Pune/Noida role. hybrid/onsite/flexible all accept
 # hub presence; remote-only is a softer fit. Applied as a multiplier on the
