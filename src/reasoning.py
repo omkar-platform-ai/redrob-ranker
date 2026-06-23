@@ -10,7 +10,6 @@ Every field referenced must come from the parsed candidate dict.
 
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass
 
 
@@ -48,7 +47,6 @@ class ReasoningGenerator:
         yoe = candidate.get("years_of_experience", 0)
         title = candidate.get("current_title", "engineer")
         company = candidate.get("current_company", "")
-        ind = candidate.get("current_industry", "")
         matched = sc.matched_skills[:3]
         notice = candidate.get("behavioral_signals", {}).get("notice_period_days", 90)
         beh_signals = candidate.get("behavioral_signals", {})
@@ -61,7 +59,7 @@ class ReasoningGenerator:
         gems = sc.hidden_gem_reasons
 
         # Build sentence 1: strongest positive signal
-        s1 = self._sentence1(yoe, title, company, ind, matched, product_months, parsed_jd)
+        s1 = self._sentence1(yoe, title, company, matched, product_months, parsed_jd)
 
         # Build sentence 2: availability / concern / secondary positive
         s2 = self._sentence2(
@@ -74,16 +72,20 @@ class ReasoningGenerator:
     # ── Sentence builders ─────────────────────────────────────────────────────
 
     def _sentence1(
-        self, yoe: float, title: str, company: str, ind: str,
+        self, yoe: float, title: str, company: str,
         matched: list[str], product_months: int, parsed_jd
     ) -> str:
         skills_str = " + ".join(matched) if matched else "adjacent skills"
         co_str = f" at {company}" if company else ""
-        ind_context = "product-stage company" if product_months > 24 else "services background"
+        # Phrase prior product-company experience as a career-history signal, never
+        # as a property of the *current* company — the current employer may be a
+        # consulting firm even when the candidate has prior product stints
+        # (e.g. "at Infosys (product-stage company)" was a misattribution).
+        product_ctx = " with prior product-company experience" if product_months > 24 else ""
 
         if matched and yoe >= parsed_jd.min_experience_years:
             return (
-                f"{yoe:.0f}yr {title}{co_str} ({ind_context}); "
+                f"{yoe:.0f}yr {title}{co_str}{product_ctx}; "
                 f"{skills_str} match JD requirements directly"
             )
         elif yoe >= parsed_jd.min_experience_years:
