@@ -29,10 +29,12 @@ COPY data/sample_candidates.json ./data/
 # Streamlit demo app
 COPY scripts/demo_app.py ./demo_app.py
 
-EXPOSE 8501
+# HF Spaces routes Docker apps to port 7860 by default; listen there so the
+# Space needs no app_port override. Locally: `docker run -p 7860:7860`.
+EXPOSE 7860
 
 ENV PYTHONPATH=/app
-ENV STREAMLIT_SERVER_PORT=8501
+ENV STREAMLIT_SERVER_PORT=7860
 ENV STREAMLIT_SERVER_HEADLESS=true
 
 CMD ["streamlit", "run", "demo_app.py"]

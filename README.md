@@ -140,10 +140,10 @@ Open <http://localhost:8501>, paste the JD (contents of `data/job_description.tx
 
 ```bash
 docker build -t redrob-ranker .      # bakes the embedding model into the image
-docker run -p 8501:8501 redrob-ranker
+docker run -p 7860:7860 redrob-ranker
 ```
 
-Open <http://localhost:8501>. The image sets `HF_HUB_OFFLINE=1` / `TRANSFORMERS_OFFLINE=1` and pre-downloads `BAAI/bge-base-en-v1.5` at **build** time, so ranking runs with **no network** — matching the Stage-3 constraints.
+Open <http://localhost:7860>. The image sets `HF_HUB_OFFLINE=1` / `TRANSFORMERS_OFFLINE=1` and pre-downloads `BAAI/bge-base-en-v1.5` at **build** time, so ranking runs with **no network** — matching the Stage-3 constraints. Port **7860** is the HuggingFace Spaces default, so the same image deploys to a Space unchanged.
 
 ### Option C — Deploy to HuggingFace Spaces
 
