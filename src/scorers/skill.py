@@ -7,6 +7,8 @@ Scoring per skill:
   proficiency_weight × 0.70
   + duration_bonus   × 0.20  (caps at SKILL_DURATION_CAP_MONTHS)
   + endorsement_bonus× 0.10  (caps at 0.10 extra)
+  When Redrob has a measured `assessment_score` for the skill, the result is
+  blended with it (SKILL_ASSESSMENT_BLEND) — the only objective proficiency signal.
 
 No external dependencies beyond rapidfuzz (CPU-only, fast).
 """
@@ -16,6 +18,7 @@ from __future__ import annotations
 from rapidfuzz import fuzz
 
 from src.config import (
+    SKILL_ASSESSMENT_BLEND,
     SKILL_DURATION_CAP_MONTHS,
     SKILL_OPTIONAL_WEIGHT,
     SKILL_PROFICIENCY_WEIGHTS,
@@ -96,4 +99,18 @@ class SkillScorer:
         endorsements = min(skill_meta.get("endorsements", 0), 50)
         endorsement_bonus = endorsements / 50 * 0.10  # max 0.10
 
-        return min(1.0, prof_w * 0.70 + duration_bonus * 0.20 + endorsement_bonus)
+        # Self-declared proficiency + duration + endorsements (subjective signals).
+        base = prof_w * 0.70 + duration_bonus * 0.20 + endorsement_bonus
+
+        # Blend in Redrob's measured assessment (0-100) when present — the only
+        # objective proficiency signal. A strong measured score lifts a modest
+        # self-rating; a weak one tempers an inflated "expert".
+        assessment = skill_meta.get("assessment_score", -1)
+        if assessment >= 0:
+            assessment_norm = min(max(assessment / 100.0, 0.0), 1.0)
+            return min(
+                1.0,
+                (1.0 - SKILL_ASSESSMENT_BLEND) * base
+                + SKILL_ASSESSMENT_BLEND * assessment_norm,
+            )
+        return min(1.0, base)

@@ -13,8 +13,7 @@ from __future__ import annotations
 import gzip
 import json
 import logging
-import math
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -109,8 +108,36 @@ def _derive_career_stats(career_history: list[dict]) -> dict[str, Any]:
 
 # ── Skill normalisation ───────────────────────────────────────────────────────
 
-def _parse_skills(raw_skills: list[dict]) -> tuple[list[str], list[dict]]:
-    """Returns (skill_names_list, skills_with_meta_list)."""
+def _match_assessment(skill_name: str, assessments: dict) -> float:
+    """Measured Redrob assessment score (0-100) for a skill, or -1 if unassessed.
+
+    `skill_assessment_scores` is the only OBJECTIVE proficiency signal in the
+    dataset (everything else is self-declared). Match conservatively on a
+    normalised key (lowercase, alphanumerics only): a false attribution would
+    corrupt the skill score, so we prefer a miss over a wrong match. Stdlib only
+    (no rapidfuzz) to keep this module rank-time-safe.
+    """
+    if not assessments:
+        return -1.0
+    target = "".join(ch for ch in skill_name.lower() if ch.isalnum())
+    if not target:
+        return -1.0
+    for k, v in assessments.items():
+        norm_k = "".join(ch for ch in str(k).lower() if ch.isalnum())
+        if norm_k and norm_k == target:
+            return float(v)
+    return -1.0
+
+
+def _parse_skills(
+    raw_skills: list[dict], assessments: dict | None = None
+) -> tuple[list[str], list[dict]]:
+    """Returns (skill_names_list, skills_with_meta_list).
+
+    Each skill meta carries an `assessment_score` (0-100, or -1 when Redrob has no
+    measured score for it) so the skill scorer can blend objective proficiency.
+    """
+    assessments = assessments or {}
     names: list[str] = []
     meta: list[dict] = []
     for s in raw_skills:
@@ -123,6 +150,7 @@ def _parse_skills(raw_skills: list[dict]) -> tuple[list[str], list[dict]]:
             "proficiency": (s.get("proficiency") or "intermediate").lower(),
             "endorsements": int(s.get("endorsements", 0)),
             "duration_months": int(s.get("duration_months", 0)),
+            "assessment_score": _match_assessment(name, assessments),
         })
     return names, meta
 
@@ -152,6 +180,7 @@ def _parse_behavioral(signals: dict) -> dict[str, Any]:
         "applications_count": apps,
         "profile_views_last_30d": int(signals.get("profile_views_received_30d", 0)),
         "saved_by_recruiters_30d": int(signals.get("saved_by_recruiters_30d", 0)),
+        "search_appearances_last_30d": int(signals.get("search_appearance_30d", 0)),
         "notice_period_days": int(signals.get("notice_period_days", 90)),
         "github_activity_score": float(signals.get("github_activity_score", -1)),
         "interview_completion_rate": float(signals.get("interview_completion_rate", 0.0)),
@@ -218,7 +247,9 @@ def parse_redrob_candidate(raw: dict) -> dict:
     raw_skills = raw.get("skills") or []
     education = raw.get("education") or []
 
-    skill_names, skills_with_meta = _parse_skills(raw_skills)
+    skill_names, skills_with_meta = _parse_skills(
+        raw_skills, signals.get("skill_assessment_scores")
+    )
     behavioral = _parse_behavioral(signals)
     career_stats = _derive_career_stats(career_history)
 
