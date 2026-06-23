@@ -100,7 +100,7 @@ python precompute.py --candidates data/candidates.jsonl --jd data/job_descriptio
 ## Step 2 — Rank (< 5 min, CPU only)
 
 ```bash
-python rank.py --candidates data/candidates.jsonl --jd data/job_description.txt --out submission.csv
+python rank.py --candidates data/candidates.jsonl --out submission.csv
 ```
 
 No LLM calls. No network. Loads the pre-built FAISS index from disk and runs in under 5 minutes on CPU.
