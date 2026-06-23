@@ -85,7 +85,6 @@ class HoneypotDetector:
             "pytorch", "tensorflow", "transformers", "llm", "rag", "fine-tuning",
             "embeddings", "vector database", "bert", "gpt",
         }
-        candidate_skills = {s.lower() for s in c.get("skills", [])}
         advanced_count = sum(
             1 for s in c.get("skills_with_meta", [])
             if s["name"].lower() in adv_ai_skills
