@@ -30,6 +30,8 @@ venv/
 .ruff_cache/
 
 # Claude
+.claude/
 headroom_memory.db
 .serena
 redrob-hackathon-dev.skill
+VALIDATION_REPORT.md
