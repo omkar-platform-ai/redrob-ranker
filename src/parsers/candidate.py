@@ -176,7 +176,6 @@ def _parse_behavioral(signals: dict) -> dict[str, Any]:
         "last_active_days": last_active_days,
         "open_to_work": bool(signals.get("open_to_work_flag", False)),
         "recruiter_response_rate": float(signals.get("recruiter_response_rate", 0.0)),
-        "avg_response_time_hours": float(signals.get("avg_response_time_hours", 999.0)),
         "applications_count": apps,
         "profile_views_last_30d": int(signals.get("profile_views_received_30d", 0)),
         "saved_by_recruiters_30d": int(signals.get("saved_by_recruiters_30d", 0)),
@@ -184,15 +183,9 @@ def _parse_behavioral(signals: dict) -> dict[str, Any]:
         "notice_period_days": int(signals.get("notice_period_days", 90)),
         "github_activity_score": float(signals.get("github_activity_score", -1)),
         "interview_completion_rate": float(signals.get("interview_completion_rate", 0.0)),
-        "offer_acceptance_rate": float(signals.get("offer_acceptance_rate", -1)),
-        "profile_completeness": float(signals.get("profile_completeness_score", 0.0)),
         "willing_to_relocate": bool(signals.get("willing_to_relocate", False)),
         "actively_applying": apps > 1,
-        "verified_email": bool(signals.get("verified_email", False)),
-        "linkedin_connected": bool(signals.get("linkedin_connected", False)),
         "preferred_work_mode": signals.get("preferred_work_mode", "flexible"),
-        "salary_min_lpa": float((signals.get("expected_salary_range_inr_lpa") or {}).get("min", 0)),
-        "salary_max_lpa": float((signals.get("expected_salary_range_inr_lpa") or {}).get("max", 0)),
     }
 
 
