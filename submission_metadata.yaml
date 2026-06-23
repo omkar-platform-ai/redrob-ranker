@@ -5,14 +5,16 @@ sandbox_link: ""          # TODO(user): paste HuggingFace Spaces / Streamlit Clo
 
 # ── Primary contact (§10.2) ────────────────────────────────────────────────────
 primary_contact:
-  name: ""                # TODO(user)
-  email: ""               # TODO(user)
-  phone: ""               # TODO(user)
+  name: "Omkar Sonawane"
+  email: "omkar.aiaccelerate@gmail.com"
+  phone: "+91-7719996288"
 
 # ── Team members (§10.2) ───────────────────────────────────────────────────────
 team_members:
-  - name: ""              # TODO(user): one entry per team member
-    role: ""
+  - name: "Sagar Shinde"
+    role: "Backend Engineer"
+    email: "sagar.it01@gmail.com"
+    phone: "+91-9970375687"
 
 # ── Compute environment summary (§10.2) ────────────────────────────────────────
 # Dev machine that produced data/submission.csv. The rank step is built to fit the
