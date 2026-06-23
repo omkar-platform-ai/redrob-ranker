@@ -1,0 +1,7 @@
+[server]
+# HuggingFace Spaces serves this app behind a reverse proxy (and sometimes in an
+# iframe), which breaks Streamlit's XSRF cookie flow on the file-upload endpoint
+# -> uploads fail with HTTP 403 and no backend traceback. This sandbox is a
+# public demo with no auth or secrets, so XSRF protection can be safely disabled.
+enableXsrfProtection = false
+maxUploadSize = 200

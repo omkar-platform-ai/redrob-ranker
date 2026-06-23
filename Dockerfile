@@ -26,8 +26,9 @@ COPY src/ ./src/
 COPY rank.py precompute.py validate_submission.py ./
 COPY data/sample_candidates.json ./data/
 
-# Streamlit demo app
+# Streamlit demo app + config (XSRF off: HF proxy breaks the upload-cookie flow)
 COPY scripts/demo_app.py ./demo_app.py
+COPY .streamlit ./.streamlit
 
 # HF Spaces routes Docker apps to port 7860 by default; listen there so the
 # Space needs no app_port override. Locally: `docker run -p 7860:7860`.
