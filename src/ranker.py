@@ -19,14 +19,13 @@ from __future__ import annotations
 import csv
 import logging
 import time
-from dataclasses import dataclass, field
 
 from src.config import (
     CONFIDENCE_HIGH,
     CONFIDENCE_MEDIUM,
+    LOCATION_INELIGIBLE_MULTIPLIER,
     OUTPUT_COLUMNS,
     TOP_K_FINAL,
-    TOP_K_RETRIEVE,
     WEIGHTS,
 )
 from src.honeypot import HoneypotDetector
@@ -88,6 +87,8 @@ class RankingEngine:
             is_honeypot, _ = self.honeypot.detect(c)
             if is_honeypot:
                 composite = 0.0  # ensure it never reaches top 100
+            elif self._location_ineligible(c):
+                composite *= LOCATION_INELIGIBLE_MULTIPLIER
 
             sc = ScoredCandidate(
                 candidate_id=cid,
@@ -114,7 +115,7 @@ class RankingEngine:
             scored.append(sc)
 
         # ── Sort + rank ───────────────────────────────────────────────────────
-        scored.sort(key=lambda x: x.score, reverse=True)
+        scored.sort(key=lambda x: (-x.score, x.candidate_id))
         top = scored[:TOP_K_FINAL]
 
         # Enforce non-increasing scores (break ties by candidate_id ascending)
@@ -147,6 +148,19 @@ class RankingEngine:
         if score >= CONFIDENCE_MEDIUM:
             return "MEDIUM"
         return "LOW"
+
+    def _location_ineligible(self, c: dict) -> bool:
+        """Abroad candidate unwilling to relocate — unhireable for this India-hybrid role.
+
+        The role-fit scorer already applies the LOCATION_ABROAD tier, but that only
+        moves the 20% role_fit weight. This gate suppresses the whole composite so a
+        location-ineligible candidate can't ride high semantic/skill scores into the
+        top ranks. Missing country is treated as eligible (never penalise missing data).
+        """
+        country = (c.get("country") or "").lower()
+        abroad = country not in ("", "india", "in")
+        willing = c.get("behavioral_signals", {}).get("willing_to_relocate", False)
+        return abroad and not willing
 
     @staticmethod
     def to_csv(ranked: list[ScoredCandidate], path: str) -> None:
