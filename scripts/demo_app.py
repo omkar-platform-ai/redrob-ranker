@@ -5,6 +5,27 @@ from pathlib import Path
 
 import streamlit as st
 
+
+def _load_candidates(raw: str) -> list[dict]:
+    """Parse an uploaded candidate file as either a JSON array or JSONL.
+
+    Uploads arrive in either shape: a pretty/compact JSON array
+    (``[ { ... }, { ... } ]``) or newline-delimited JSON (one object per line).
+    A leading BOM is stripped upstream by decoding as ``utf-8-sig``.
+    """
+    stripped = raw.strip()
+    if not stripped:
+        return []
+    if stripped[0] == "[":  # JSON array — a single loads() covers pretty & compact
+        try:
+            data = json.loads(stripped)
+            if isinstance(data, list):
+                return data
+        except json.JSONDecodeError:
+            pass  # not a valid array as a whole — fall through to line-by-line JSONL
+    return [json.loads(line) for line in raw.splitlines() if line.strip()]
+
+
 st.set_page_config(page_title="Redrob Ranker — Velocity Labs", page_icon="🎯", layout="wide")
 
 st.title("🎯 Redrob Intelligent Candidate Ranker")
@@ -37,8 +58,14 @@ if st.button("🚀 Run Ranking", type="primary", disabled=not (jd_text and uploa
             import sys
             sys.path.insert(0, str(Path(__file__).parent.parent))
 
-            raw_lines = uploaded.read().decode("utf-8").splitlines()
-            candidates_raw = [json.loads(line) for line in raw_lines if line.strip()]
+            # utf-8-sig strips a leading BOM; accept both JSON arrays and JSONL
+            raw = uploaded.read().decode("utf-8-sig")
+            candidates_raw = _load_candidates(raw)
+            if not candidates_raw:
+                raise ValueError(
+                    "No candidates found in the upload. Expected JSONL (one JSON "
+                    "object per line) or a JSON array of candidate objects."
+                )
 
             from src.parsers.candidate import parse_redrob_candidate
             from src.parsers.jd import _keyword_fallback
