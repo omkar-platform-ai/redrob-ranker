@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from tests.conftest import make_candidate
 
+from src.parsers.jd import ParsedJD
 from src.scorers.behavioral import BehavioralScorer
 from src.scorers.career import CareerScorer
 from src.scorers.role_fit import RoleFitScorer
@@ -81,3 +82,46 @@ def test_career_hidden_gem_bonus(parsed_candidate):
     # fixture has open-source + 2 promotions + high interview completion
     assert bonus > 0.0
     assert "open_source" in reasons
+
+
+# ── behavioral: graded conversion component ─────────────────────────────────
+
+def test_behavioral_conversion_graded():
+    """offer/github/interview now grade continuously: a strong converter
+    outscores one carrying only sentinel (-1) data, all else equal."""
+    scorer = BehavioralScorer()
+    base = {"last_active_days": 0, "notice_period_days": 30, "recruiter_response_rate": 0.5}
+    weak = dict(base)  # offer/github missing → neutral; interview defaults to 0
+    strong = dict(base, offer_acceptance_rate=0.9,
+                  interview_completion_rate=1.0, github_activity_score=55)
+    assert scorer.score(strong) > scorer.score(weak)
+
+
+def test_behavioral_missing_signal_is_neutral():
+    """A -1 sentinel (no GitHub / no prior offers) maps to neutral, not 0 —
+    absence is never punished, only presence rewarded."""
+    scorer = BehavioralScorer()
+    base = {"last_active_days": 0, "notice_period_days": 30}
+    missing = dict(base, github_activity_score=-1, offer_acceptance_rate=-1)
+    low = dict(base, github_activity_score=0, offer_acceptance_rate=0.0)
+    assert scorer.score(missing) > scorer.score(low)
+
+
+# ── role_fit: JD-stated disqualifiers ────────────────────────────────────────
+
+def test_role_fit_jd_disqualifier_title_chasing():
+    """A JD that disqualifies title-chasing penalises short-tenure candidates."""
+    hopper = make_candidate(avg_tenure_months=12)
+    with_dq = RoleFitScorer().score(
+        hopper, ParsedJD(disqualifiers=["title-chasing every 1.5 years"]))
+    without_dq = RoleFitScorer().score(hopper, ParsedJD(disqualifiers=[]))
+    assert with_dq < without_dq
+
+
+def test_role_fit_jd_disqualifier_cv_speech():
+    """A pure CV/speech title is penalised when the JD disqualifies that domain."""
+    cv = make_candidate(current_title="Computer Vision Engineer")
+    with_dq = RoleFitScorer().score(
+        cv, ParsedJD(disqualifiers=["cv/speech/robotics primary"]))
+    without_dq = RoleFitScorer().score(cv, ParsedJD(disqualifiers=[]))
+    assert with_dq < without_dq

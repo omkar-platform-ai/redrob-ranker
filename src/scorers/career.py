@@ -6,9 +6,11 @@ Signals:
   3. Progression  (35%) — title/responsibility growth over time
 
 Hidden-gem bonuses (capped at HIDDEN_GEM_CAP):
-  - Open-source contributions (GitHub activity score ≥ 30)
   - Multi-promotion (promoted 2+ times)
-  - High interview completion rate (≥ 0.8)
+
+(Open-source and interview-completion were migrated to the behavioral scorer's
+graded conversion component; an "open_source" reason tag is still emitted here
+so reasoning can cite it, but carries no career bonus.)
 """
 
 from __future__ import annotations
@@ -82,17 +84,17 @@ class CareerScorer:
         bonus = 0.0
         reasons: list[str] = []
 
+        # github_activity_score is now scored (graded) in the behavioral conversion
+        # component; keep the reason tag so reasoning can still cite open-source,
+        # but apply no career bonus (avoids double-counting with the github term).
         if c.get("has_open_source_contributions", False):
-            bonus += HIDDEN_GEM_BONUSES["open_source"]
             reasons.append("open_source")
 
         if c.get("promotions_count", 0) >= 2:
             bonus += HIDDEN_GEM_BONUSES["multi_promotion"]
             reasons.append("multi_promotion")
 
-        beh = c.get("behavioral_signals", {})
-        if float(beh.get("interview_completion_rate", 0)) >= 0.80:
-            bonus += 0.03
-            reasons.append("high_interview_completion")
+        # interview_completion_rate migrated to the behavioral conversion component
+        # (graded); no longer a career gem.
 
         return min(HIDDEN_GEM_CAP, bonus), reasons

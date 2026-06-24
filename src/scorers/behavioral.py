@@ -1,10 +1,11 @@
 """Behavioral Scorer — maps redrob platform signals to a 0-1 score.
 
 Signal groups (weighted):
-  1. Recency     (45%) — exponential decay on days since last active
-  2. Engagement  (30%) — applications, profile views, saved-by-recruiters, search appearances
+  1. Recency     (40%) — exponential decay on days since last active
+  2. Engagement  (25%) — applications, profile views, saved-by-recruiters, search appearances
   3. Response    (15%) — recruiter_response_rate (strongest hiring proxy)
-  4. Notice      (10%) — notice period (lower = easier to hire)
+  4. Conversion  (12%) — graded offer-acceptance / interview-completion / github activity
+  5. Notice      ( 8%) — notice period (lower = easier to hire)
 
 No external dependencies. Pure Python math.
 """
@@ -14,7 +15,13 @@ from __future__ import annotations
 import math
 
 from src.config import (
+    CONVERSION_GITHUB_WEIGHT,
+    CONVERSION_INTERVIEW_WEIGHT,
+    CONVERSION_NEUTRAL,
+    CONVERSION_OFFER_WEIGHT,
+    CONVERSION_WEIGHT,
     ENGAGEMENT_WEIGHT,
+    GITHUB_SCORE_CAP,
     NOTICE_WEIGHT,
     RECENCY_DECAY_LAMBDA,
     RECENCY_WEIGHT,
@@ -29,6 +36,7 @@ class BehavioralScorer:
         recency = self._recency(signals.get("last_active_days", 365))
         engagement = self._engagement(signals)
         response = float(signals.get("recruiter_response_rate", 0.0))
+        conversion = self._conversion(signals)
         notice = self._notice(signals.get("notice_period_days", 90))
 
         return min(
@@ -36,6 +44,7 @@ class BehavioralScorer:
             RECENCY_WEIGHT * recency
             + ENGAGEMENT_WEIGHT * engagement
             + RESPONSE_RATE_WEIGHT * response
+            + CONVERSION_WEIGHT * conversion
             + NOTICE_WEIGHT * notice,
         )
 
@@ -55,6 +64,30 @@ class BehavioralScorer:
         return (
             0.25 * apps + 0.20 * views + 0.15 * saved
             + 0.15 * search + 0.25 * open_to_work
+        )
+
+    def _conversion(self, s: dict) -> float:
+        """Graded hireability signals: offer-acceptance, interview-completion,
+        github activity. Previously binarised (github/interview) or dropped
+        (offer_acceptance_rate). Now continuous.
+
+        offer_acceptance_rate and github_activity_score carry a -1 sentinel for
+        ~60-65% of candidates (no prior offers / no GitHub). Missing data maps to
+        a NEUTRAL value so absence is never punished — only differentiated when
+        the signal actually exists.
+        """
+        offer = float(s.get("offer_acceptance_rate", -1))
+        offer = CONVERSION_NEUTRAL if offer < 0 else min(1.0, max(0.0, offer))
+
+        interview = min(1.0, max(0.0, float(s.get("interview_completion_rate", 0.0))))
+
+        github = float(s.get("github_activity_score", -1))
+        github = CONVERSION_NEUTRAL if github < 0 else min(github, GITHUB_SCORE_CAP) / GITHUB_SCORE_CAP
+
+        return (
+            CONVERSION_OFFER_WEIGHT * offer
+            + CONVERSION_INTERVIEW_WEIGHT * interview
+            + CONVERSION_GITHUB_WEIGHT * github
         )
 
     def _notice(self, days: int) -> float:
