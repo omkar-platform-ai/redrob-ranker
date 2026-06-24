@@ -1,14 +1,3 @@
----
-title: Redrob Ranker
-emoji: 🎯
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-app_port: 7860
-pinned: false
-short_description: Multi-signal AI candidate ranking for INDIA.RUNS Track 01
----
-
 # Redrob Ranker — Velocity Labs
 
 **INDIA.RUNS Hackathon · Track 01 · Intelligent Candidate Discovery & Ranking**
@@ -39,9 +28,9 @@ FAISS index + parsed_jd.json (from disk)
        │
        └─► MultiSignalRanker (for each of 500):
               ├── Semantic     40%  cosine similarity (FAISS score)
-              ├── Role-Fit     20%  title + company-type + location + YoE band
+              ├── Role-Fit     20%  title + company-type + location + YoE band + JD disqualifiers
               ├── Skill        15%  proficiency-weighted fuzzy match (RapidFuzz)
-              ├── Behavioral   15%  recency decay + response rate + notice period
+              ├── Behavioral   15%  recency + engagement + response + conversion + notice
               └── Career       10%  velocity + stability + progression + hidden-gem
               │
               ├── HoneypotDetector ──► zero-score impossible profiles
@@ -95,7 +84,7 @@ python precompute.py --candidates data/candidates.jsonl --jd data/job_descriptio
   --chunk-size 100
 ```
 
-> **Tip:** Close unused browser tabs and apps before running. The embedding model (`BAAI/bge-base-en-v1.5`) downloads ~430 MB on first run and is cached in `~/.cache/huggingface/` afterwards.
+> The embedding model (`BAAI/bge-base-en-v1.5`) downloads ~430 MB on first run and is cached in `~/.cache/huggingface/` afterwards.
 
 ### Resuming an interrupted run
 
@@ -190,7 +179,7 @@ Open <http://localhost:7860>. The image sets `HF_HUB_OFFLINE=1` / `TRANSFORMERS_
 | Semantic similarity | 40% | Deep JD-profile understanding; captures implicit fit |
 | Role-fit | 20% | Hard structural filter; prevents keyword-stuffer inflation |
 | Skill depth | 15% | Proficiency + duration beats binary presence/absence |
-| Behavioral | 15% | Active candidates with low notice period actually hire |
+| Behavioral | 15% | Active, hireable candidates: recency + engagement + response + conversion (offer/interview/GitHub) + notice period |
 | Career trajectory | 10% | Hidden-gem detection; fast-trackers undervalued by keyword search |
 
 ---
@@ -216,12 +205,19 @@ redrob-ranker/
 │   │   ├── candidate.py   # redrob schema → internal dict
 │   │   └── jd.py          # LLM JD extraction (pre-compute only)
 │   └── scorers/
-│       ├── behavioral.py  # Recency decay + engagement + notice
-│       ├── career.py      # Velocity + stability + hidden-gem
-│       ├── role_fit.py    # Title + company-type + location + YoE
+│       ├── behavioral.py  # Recency + engagement + response + conversion + notice
+│       ├── career.py      # Velocity + stability + progression + hidden-gem
+│       ├── role_fit.py    # Title + company-type + location + YoE + JD disqualifiers
 │       └── skill.py       # Proficiency-weighted fuzzy match
 ├── scripts/
 │   └── demo_app.py        # Streamlit sandbox
+├── tests/                 # pytest suite: parser, scorers, honeypot, ranker, reasoning
+│   ├── conftest.py        # shared fixtures
+│   ├── test_candidate_parser.py
+│   ├── test_honeypot.py
+│   ├── test_ranker.py
+│   ├── test_reasoning.py
+│   └── test_scorers.py
 └── data/
     └── index/             # Pre-computed artifacts (gitignored)
 ```
