@@ -195,3 +195,10 @@ if st.button("🚀 Run Ranking", type="primary", disabled=not (jd_text and uploa
         for sc in ranked[:20]
     ])
     st.dataframe(df, use_container_width=True)
+    # The on-screen table is a top-20 preview; the downloadable CSV has the full
+    # ranking. State that explicitly so "Ranked 100" next to a 20-row table isn't
+    # mistaken for a bug.
+    st.caption(
+        f"Showing top 20 of {len(ranked)} ranked candidates — "
+        "the full ranking is in the downloaded CSV."
+    )
