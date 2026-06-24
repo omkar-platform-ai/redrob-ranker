@@ -48,10 +48,25 @@ WEIGHTS: dict[str, float] = {
 
 # ── Behavioral scorer ─────────────────────────────────────────────────────────
 RECENCY_DECAY_LAMBDA: float = 0.023   # exp(-λ × days): 30d → ~0.50, 90d → ~0.13
-RECENCY_WEIGHT: float = 0.45
-ENGAGEMENT_WEIGHT: float = 0.30
+# Sub-weights (sum to 1.0). Rebalanced to make room for the CONVERSION component
+# (graded offer/interview/github signals, previously binarised or dropped).
+RECENCY_WEIGHT: float = 0.40      # was 0.45
+ENGAGEMENT_WEIGHT: float = 0.25   # was 0.30
 RESPONSE_RATE_WEIGHT: float = 0.15
-NOTICE_WEIGHT: float = 0.10
+CONVERSION_WEIGHT: float = 0.12   # NEW — graded hireability (offer/interview/github)
+NOTICE_WEIGHT: float = 0.08       # was 0.10
+
+# ── Behavioral: conversion sub-component (graded hireability signals) ─────────
+# offer_acceptance_rate (-1..1) and github_activity_score (-1..100) carry a -1
+# sentinel for ~60-65% of candidates (no prior offers / no GitHub linked).
+# Missing data maps to a NEUTRAL value so absence is never punished, only
+# presence rewarded. Verified distribution: offer median -1 (59.6% sentinel),
+# github median -1 (64.6% sentinel), interview 0.3-1.0 (no sentinel).
+CONVERSION_OFFER_WEIGHT: float = 0.40       # offer_acceptance_rate — strongest hireability proxy
+CONVERSION_INTERVIEW_WEIGHT: float = 0.35   # interview_completion_rate (0..1)
+CONVERSION_GITHUB_WEIGHT: float = 0.25      # github_activity_score (ML skill-depth proxy)
+GITHUB_SCORE_CAP: float = 60.0              # ~p95; scores above the cap map to 1.0
+CONVERSION_NEUTRAL: float = 0.5             # value substituted for missing/sentinel (-1) data
 
 # ── Career scorer ─────────────────────────────────────────────────────────────
 CAREER_VELOCITY_WEIGHT: float = 0.40
@@ -59,7 +74,10 @@ CAREER_STABILITY_WEIGHT: float = 0.25
 CAREER_PROGRESSION_WEIGHT: float = 0.35
 
 HIDDEN_GEM_BONUSES: dict[str, float] = {
-    "open_source":     0.06,
+    # open_source removed: github_activity_score is now graded in the behavioral
+    # conversion component. The career scorer still emits an "open_source" *reason*
+    # tag (so reasoning can cite it), but applies no career bonus — avoiding
+    # double-counting with the behavioral github term.
     "side_projects":   0.04,
     "publications":    0.05,
     "multi_promotion": 0.05,
@@ -121,6 +139,27 @@ SERVICES_INDUSTRIES: frozenset[str] = frozenset({
 YOE_UNDER_PENALTY_PER_YEAR: float = 0.35   # slope below min band (was 0.15 — too soft)
 YOE_OVER_PENALTY_PER_YEAR: float = 0.08    # slope above max band
 YOE_OVER_PENALTY_FLOOR: float = 0.40       # over-qualified never scores below this
+
+# ── JD-stated disqualifier enforcement (role-fit) ────────────────────────────
+# parsed_jd.disqualifiers was LLM-extracted but no scorer read it (latent bug).
+# Only reliably-computable predicates are wired; fuzzy JD disqualifiers
+# ("LLM-only <12mo", "pure research") remain JD text only by design.
+TITLE_CHASING_MAX_TENURE_MONTHS: int = 18   # "title-chasing every 1.5 years" → avg tenure < 18mo
+JD_DISQUALIFIER_MULTIPLIER: float = 0.50    # applied as a multiplier on the role-fit base
+# Domain tokens signalling the candidate's PRIMARY work is CV/speech/robotics
+# (out of scope for a text/retrieval/ranking ML role). Word-boundary matched so
+# "vision" never hits "division".
+CV_SPEECH_ROBOTICS_TOKENS: frozenset[str] = frozenset({
+    "computer vision", "vision", "speech", "robotics", "robot",
+    "autonomous", "signal processing", "computer graphics",
+})
+# In-scope tokens: their presence in the title suppresses the CV/speech/robotics
+# penalty (an "ML Engineer" who also touches vision is still in scope).
+ML_INSCOPE_TOKENS: frozenset[str] = frozenset({
+    "ml", "machine learning", "ai", "artificial intelligence", "nlp",
+    "natural language", "search", "retrieval", "ranking", "recommendation",
+    "deep learning", "llm", "data science", "data scientist", "applied scientist",
+})
 
 # ── Location scorer ───────────────────────────────────────────────────────────
 INDIA_TIER1_CITIES: frozenset[str] = frozenset({

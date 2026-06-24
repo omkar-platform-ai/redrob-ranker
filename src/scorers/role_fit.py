@@ -13,16 +13,21 @@ Signals:
 Hard penalties (multipliers, not additive):
   - Consulting-only career: ×0.25
   - Disqualifying title (HR, Marketing, etc.): ×0.10
+  - JD-stated disqualifiers (title-chasing, CV/speech/robotics primary): ×0.50
 """
 
 from __future__ import annotations
 
+import re
+
 from src.config import (
     AI_ENGINEER_TITLES,
     CONSULTING_ONLY_MULTIPLIER,
+    CV_SPEECH_ROBOTICS_TOKENS,
     DISQUALIFYING_TITLES,
     INDIA_TIER1_CITIES,
     INDIA_TIER2_CITIES,
+    JD_DISQUALIFIER_MULTIPLIER,
     LOCATION_ABROAD,
     LOCATION_ABROAD_RELOCATE,
     LOCATION_INDIA_OTHER,
@@ -30,6 +35,8 @@ from src.config import (
     LOCATION_TIER1,
     LOCATION_TIER2,
     LOCATION_TIER2_RELOCATE,
+    ML_INSCOPE_TOKENS,
+    TITLE_CHASING_MAX_TENURE_MONTHS,
     WORK_MODE_FIT,
     YOE_OVER_PENALTY_FLOOR,
     YOE_OVER_PENALTY_PER_YEAR,
@@ -62,6 +69,8 @@ class RoleFitScorer:
             base *= 0.10
         if candidate.get("all_consulting", False):
             base *= CONSULTING_ONLY_MULTIPLIER
+        # JD-stated disqualifiers (was a latent bug: parsed but no scorer read them)
+        base *= self._jd_disqualifier_multiplier(candidate, parsed_jd)
 
         return min(1.0, base)
 
@@ -83,6 +92,36 @@ class RoleFitScorer:
     def _is_disqualifying_title(self, title: str) -> bool:
         t = title.lower()
         return any(dt in t for dt in DISQUALIFYING_TITLES)
+
+    def _jd_disqualifier_multiplier(self, candidate: dict, parsed_jd) -> float:
+        """Multiplier from JD-STATED disqualifiers (previously parsed but unused).
+
+        Only reliably-computable predicates are wired; fuzzy JD disqualifiers
+        ("LLM-only <12mo", "pure research") stay as JD text only by design.
+        """
+        dqs = " ".join(getattr(parsed_jd, "disqualifiers", []) or []).lower()
+        if not dqs:
+            return 1.0
+        mult = 1.0
+        # Title-chasing / short tenure ("title-chasing every 1.5 years", "job-hopping")
+        if any(tok in dqs for tok in ("chas", "hopping", "1.5", "short tenure", "job hop")):
+            if candidate.get("avg_tenure_months", 99) < TITLE_CHASING_MAX_TENURE_MONTHS:
+                mult *= JD_DISQUALIFIER_MULTIPLIER
+        # CV / speech / robotics as the PRIMARY domain (out of scope for a
+        # text/retrieval/ranking ML role). Suppressed when the title also carries
+        # an in-scope ML token (an "ML Engineer" who touches vision stays clean).
+        if any(tok in dqs for tok in ("cv", "speech", "robotics", "vision", "autonomous")):
+            title = candidate.get("current_title", "")
+            if (self._title_contains_word(title, CV_SPEECH_ROBOTICS_TOKENS)
+                    and not self._title_contains_word(title, ML_INSCOPE_TOKENS)):
+                mult *= JD_DISQUALIFIER_MULTIPLIER
+        return mult
+
+    @staticmethod
+    def _title_contains_word(title: str, tokens) -> bool:
+        """Word-boundary match so 'vision' doesn't hit 'division', 'ml' not 'html'."""
+        t = (title or "").lower()
+        return any(re.search(r"\b" + re.escape(tok) + r"\b", t) for tok in tokens)
 
     def _company_type_score(self, candidate: dict) -> float:
         """Product company background scores higher than services/consulting."""

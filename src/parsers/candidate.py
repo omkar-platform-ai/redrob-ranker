@@ -183,6 +183,7 @@ def _parse_behavioral(signals: dict) -> dict[str, Any]:
         "notice_period_days": int(signals.get("notice_period_days", 90)),
         "github_activity_score": float(signals.get("github_activity_score", -1)),
         "interview_completion_rate": float(signals.get("interview_completion_rate", 0.0)),
+        "offer_acceptance_rate": float(signals.get("offer_acceptance_rate", -1)),
         "willing_to_relocate": bool(signals.get("willing_to_relocate", False)),
         "actively_applying": apps > 1,
         "preferred_work_mode": signals.get("preferred_work_mode", "flexible"),
