@@ -1,7 +1,7 @@
 team_name: "Velocity Labs"
 participant_id: ""        # TODO(user): fill from portal after registration (§2 — also names the upload file <participant_id>.csv)
 github_repo: "https://github.com/omkar-platform-ai/redrob-ranker.git"
-sandbox_link: "https://huggingface.co/spaces/omkars1986/redrob-ranker"   # live Streamlit sandbox on HF Spaces (Docker SDK, §10.5)
+sandbox_link: "https://omkars1986-redrob-ranker.hf.space/"   # live Streamlit sandbox on HF Spaces (Docker SDK, §10.5)
 
 # ── Primary contact (§10.2) ────────────────────────────────────────────────────
 primary_contact:
