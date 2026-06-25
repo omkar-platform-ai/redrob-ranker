@@ -1,4 +1,4 @@
-# Redrob Ranker — Velocity Labs
+# Redrob Ranker - VelocityLabs
 
 **INDIA.RUNS Hackathon · Track 01 · Intelligent Candidate Discovery & Ranking**
 
@@ -136,7 +136,13 @@ streamlit run scripts/demo_app.py
 
 Open <http://localhost:8501>, paste the JD (contents of `data/job_description.txt`), upload `data/sample_candidates.json`, click **🚀 Run Ranking**, then download `submission.csv`.
 
-### Option B — Docker (mirrors the HuggingFace Spaces runtime)
+### Option B — Deploy to HuggingFace Spaces
+
+1. Create a new Space → **SDK: Docker**.
+2. Push this repo; the root `Dockerfile` is used automatically.
+3. Commit a `data/sample_candidates.json` (or upload candidates at runtime) — the full `data/candidates.jsonl` is gitignored and must not be published.
+
+### Option C — Docker (mirrors the HuggingFace Spaces runtime)
 
 ```bash
 docker build -t redrob-ranker .      # bakes the embedding model into the image
@@ -144,12 +150,6 @@ docker run -p 7860:7860 redrob-ranker
 ```
 
 Open <http://localhost:7860>. The image sets `HF_HUB_OFFLINE=1` / `TRANSFORMERS_OFFLINE=1` and pre-downloads `BAAI/bge-base-en-v1.5` at **build** time, so ranking runs with **no network** — matching the Stage-3 constraints. Port **7860** is the HuggingFace Spaces default, so the same image deploys to a Space unchanged.
-
-### Option C — Deploy to HuggingFace Spaces
-
-1. Create a new Space → **SDK: Docker**.
-2. Push this repo; the root `Dockerfile` is used automatically.
-3. Commit a `data/sample_candidates.json` (or upload candidates at runtime) — the full `data/candidates.jsonl` is gitignored and must not be published.
 
 ### What to verify in the sandbox
 
