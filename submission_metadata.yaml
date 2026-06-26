@@ -1,43 +1,98 @@
-team_name: "VelocityLabs"
-participant_id: "omkar.aiaccelerate_6151"
-github_repo: "https://github.com/omkar-platform-ai/redrob-ranker.git"
-sandbox_link: "https://omkars1986-redrob-ranker.hf.space/"   # live Streamlit sandbox on HF Spaces (Docker SDK, §10.5)
+# Redrob Hackathon — Submission Metadata
+#
+# Filled from submission_metadata_template.yaml (latest bundle). Fields and order
+# mirror the official template; Stage 3 review uses this file to verify portal
+# metadata. Portal participant_id: omkar.aiaccelerate_6151 (uploaded file is
+# team_VelocityLabs.*).
 
-# ── Primary contact (§10.2) ────────────────────────────────────────────────────
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "VelocityLabs"  # Used in leaderboard and announcements
+
 primary_contact:
   name: "Omkar Sonawane"
-  email: "omkar.aiaccelerate@gmail.com"
-  phone: "+91-7719996288"
+  email: "omkar.aiaccelerate@gmail.com"   # Used for all organizer communication
+  phone: "+91-7719996288"                 # Used for top-50 / top-10 outreach
 
-# ── Team members (§10.2) ───────────────────────────────────────────────────────
 team_members:
+  - name: "Omkar Sonawane"
+    email: "omkar.aiaccelerate@gmail.com"
+    role: "Team Lead / ML Engineer"
   - name: "Sagar Shinde"
-    role: "Backend Engineer"
     email: "sagar.it01@gmail.com"
-    phone: "+91-9970375687"
+    role: "Backend Engineer"
 
-# ── Compute environment summary (§10.2) ────────────────────────────────────────
-# Dev machine that produced data/submission.csv. The rank step is built to fit the
-# spec's 16 GB CPU-only box with large margin; numbers below are measured locally.
-compute_environment: >
-  macOS, Apple M4 Pro, 48 GB RAM, Python 3.11.9. Rank step runs ~9 s CPU-only with
-  ~1.2 GB peak memory (293 MB FAISS index + 492 MB parsed-candidate cache + ~430 MB
-  embedding model) — ~13x under the 16 GB budget and ~33x under the 5 min budget.
-  Pre-computation embeds 100K candidates with BAAI/bge-base-en-v1.5 into a FAISS
-  IndexFlatIP. No LLM / GPU / network calls at rank time.
+# ============================================================================
+# Code and reproducibility
+# ============================================================================
+github_repo: "https://github.com/omkar-platform-ai/redrob-ranker"
+# Public repo. Full source, README with single reproduction command, Dockerfile,
+# architecture diagram, and this metadata file at repo root.
 
+sandbox_link: "https://omkars1986-redrob-ranker.hf.space/"
+# Live HuggingFace Spaces (Docker SDK) Streamlit app. Accepts <=100 candidates,
+# runs the full ranking pipeline end-to-end, and outputs a downloadable ranked
+# CSV in <5 min on CPU. See submission_spec.md Section 10.5.
+
+reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./submission.csv"
+# Single command that produces submission.csv from candidates.jsonl. Runs CPU-only,
+# no network, well within 5 min / 16 GB. Requires precompute.py to have built the
+# FAISS index first (pre-computation is unconstrained per spec §3 / §10.3).
+
+# ============================================================================
+# Compute environment
+# ============================================================================
+compute:
+  platform: "MacBook Pro (Apple M4 Pro)"        # dev machine that produced submission.csv
+  cpu_cores: 14                                 # Apple M4 Pro (10 performance + 4 efficiency)
+  ram_gb: 48                                    # rank step peaks at ~1.2 GB — ~13x under the 16 GB budget
+  python_version: "3.11.9"
+  os: "macOS"
+  uses_gpu_for_inference: false                 # rank step is CPU-only (no GPU)
+  has_network_during_ranking: false             # no API/network calls during ranking
+  pre_computation_required: true                # embeds 100K candidates with bge-base into a FAISS IndexFlatIP
+  pre_computation_time_minutes: 25              # ~20-25 min on MacBook CPU at default chunk-size 500 (per README)
+
+# ============================================================================
+# AI tools declaration
+# ============================================================================
+# Transparency only — declared use is NOT penalized. Stage 5 may verify these
+# against the code.
 ai_tools_used:
-  - tool: "Claude (Anthropic)"
-    usage: "Architecture design, code generation, debugging, prompt engineering"
-  - tool: "BAAI/bge-base-en-v1.5 (open-source)"
-    usage: "Candidate and JD dense embeddings for semantic retrieval"
+  - "Claude"
 
-submission_notes: >
-  Multi-signal ranking engine: semantic similarity (40%) + role-fit scoring
-  (20%) + proficiency-weighted skill match (15%, blended with Redrob's measured
-  skill_assessment_scores) + behavioral signals (15%, incl. search appearances)
-  + career trajectory (10%). Pre-computation builds a FAISS flat-IP index over
-  100K candidate embeddings. Ranking step loads the index, ANN-retrieves top-500,
-  scores each with pure-CPU math, detects honeypots via profile consistency
-  checks, suppresses location-ineligible candidates, and outputs exactly 100 rows
-  in < 5 minutes. No LLM calls during the ranking step.
+ai_usage_summary: |
+  Used Claude (Anthropic) for architecture design, code generation, debugging,
+  and prompt engineering of the JD parser. No candidate data was fed to any
+  hosted LLM during ranking — the ranking step is pure CPU math with no network.
+  The only LLM call is at pre-compute time (Claude Haiku parses the JD into a
+  structured ParsedJD). Candidate and JD embeddings use BAAI/bge-base-en-v1.5,
+  an open-source sentence-transformer run locally.
+
+# ============================================================================
+# Approach summary
+# ============================================================================
+methodology_summary: |
+  Two-phase multi-signal ranker. Pre-compute (unconstrained): Claude Haiku parses
+  the JD into a ParsedJD struct; BAAI/bge-base-en-v1.5 embeds 100K candidates into
+  a FAISS IndexFlatIP. Rank step (<5 min, CPU-only, no LLM/network): load the index,
+  embed the JD, ANN-retrieve the top-500, then score each candidate on five weighted
+  signals — semantic similarity (40%), role-fit (20%), proficiency-weighted skill
+  match (15%, blended with Redrob's measured assessment scores), behavioral signals
+  (15%: recency, engagement, response rate, conversion, notice), and career
+  trajectory (10%). Hard multipliers run before fusion: disqualifying title
+  (HR/marketing) x0.10, consulting-only career x0.25, location-ineligible x0.50.
+  A HoneypotDetector zeros profiles with 2+ consistency violations. Output is
+  exactly 100 rows with data-grounded, template-based reasoning (no LLM at rank
+  time, so no hallucinated skills). Deterministic tiebreak by candidate_id.
+
+# ============================================================================
+# Declarations
+# ============================================================================
+declarations:
+  read_submission_spec: true        # Read submission_spec.md in full
+  code_is_original_work: true       # Team's original work (AI used as a tool)
+  no_collusion: true                # No coordination with other teams
+  honeypot_check_done: true         # HoneypotDetector flags impossible profiles and zeros them
+  reproduction_tested: true         # reproduce_command tested end-to-end on CPU
