@@ -58,3 +58,21 @@ def test_reasoning_flags_consulting_concern(parsed_jd):
     sc = _scored(c, all_consulting=True, matched_skills=[])
     text = ReasoningGenerator().generate(c, sc, parsed_jd)
     assert "consulting" in text.lower()
+
+
+def test_reasoning_in_band_says_aligns(parsed_jd):
+    # YoE inside the [5,9] band, no matched skills -> "experience band aligns".
+    c = make_candidate(years_of_experience=7.0)
+    sc = _scored(c, matched_skills=[])
+    text = ReasoningGenerator().generate(c, sc, parsed_jd)
+    assert "experience band aligns" in text
+
+
+def test_reasoning_over_band_does_not_claim_aligns(parsed_jd):
+    # Over-qualified (15yr vs 5-9 band), no matched skills -> must NOT claim the
+    # band aligns. Regression for the ceiling-check bug that labelled over-band
+    # candidates as "experience band aligns".
+    c = make_candidate(years_of_experience=15.0)
+    sc = _scored(c, matched_skills=[])
+    text = ReasoningGenerator().generate(c, sc, parsed_jd)
+    assert "experience band aligns" not in text

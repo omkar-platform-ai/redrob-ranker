@@ -88,7 +88,7 @@ class ReasoningGenerator:
                 f"{yoe:.0f}yr {title}{co_str}{product_ctx}; "
                 f"{skills_str} match JD requirements directly"
             )
-        elif yoe >= parsed_jd.min_experience_years:
+        elif parsed_jd.min_experience_years <= yoe <= parsed_jd.max_experience_years:
             return (
                 f"{yoe:.0f}yr {title}{co_str}; "
                 f"experience band aligns ({parsed_jd.min_experience_years}-{parsed_jd.max_experience_years}yr range)"
