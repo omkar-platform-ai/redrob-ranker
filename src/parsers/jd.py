@@ -77,7 +77,11 @@ class ParsedJD:
 
     @classmethod
     def from_dict(cls, d: dict) -> "ParsedJD":
-        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+        # Drop None values so field defaults apply. An open-ended JD ("5+ years")
+        # yields max_experience_years=None from the LLM; without this the scorer
+        # and reasoning would hit None (e.g. `min <= yoe <= None` crashes).
+        return cls(**{k: v for k, v in d.items()
+                      if k in cls.__dataclass_fields__ and v is not None})
 
 
 def parse_jd_with_llm(jd_text: str) -> ParsedJD:
