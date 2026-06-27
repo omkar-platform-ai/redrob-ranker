@@ -37,6 +37,41 @@ def test_role_fit_consulting_only_penalised(parsed_candidate, parsed_jd):
     assert consulting < good
 
 
+# ── role_fit: title scoring (multi-word AI/ML titles) ────────────────────────
+
+def test_title_score_multiword_ai_title_full_credit():
+    """Multi-word AI/ML titles the exact set misses still earn full credit
+    (role word + in-scope ML token), e.g. 'Recommendation Systems Engineer'."""
+    scorer = RoleFitScorer()
+    assert scorer._title_score("Recommendation Systems Engineer") == 1.0
+    assert scorer._title_score("Search Ranking Engineer") == 1.0
+    assert scorer._title_score("Retrieval Engineer") == 1.0
+
+
+def test_title_score_exact_set_unchanged():
+    scorer = RoleFitScorer()
+    assert scorer._title_score("Senior ML Engineer") == 1.0
+    assert scorer._title_score("Software Engineer") == 1.0
+
+
+def test_title_score_non_ml_engineers_not_elevated():
+    """Engineering titles with no ML token keep generic credit, not 1.0."""
+    scorer = RoleFitScorer()
+    assert scorer._title_score("Mechanical Engineer") == 0.5
+    assert scorer._title_score("Frontend Engineer") == 0.5
+    assert scorer._title_score("Data Analyst") == 0.3
+    assert scorer._title_score("Marketing Manager") == 0.0
+
+
+def test_title_contains_word_is_boundary_matched():
+    """The ML-token check must not fire on substrings: 'search' inside
+    'research', 'ml' inside 'html'."""
+    scorer = RoleFitScorer()
+    assert scorer._title_contains_word("research analyst", ["search"]) is False
+    assert scorer._title_contains_word("html developer", ["ml"]) is False
+    assert scorer._title_contains_word("recommendation engineer", ["recommendation"]) is True
+
+
 # ── skill ───────────────────────────────────────────────────────────────────
 
 def test_skill_matches_required(parsed_candidate, parsed_jd):

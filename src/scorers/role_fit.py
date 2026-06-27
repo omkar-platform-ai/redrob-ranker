@@ -48,6 +48,10 @@ from src.config import (
 )
 
 
+# Engineering role nouns used for title scoring (word-boundary matched).
+_ROLE_WORDS: tuple[str, ...] = ("engineer", "scientist", "developer", "architect")
+
+
 class RoleFitScorer:
     """Computes structural fit: title + company-type + location + YoE band."""
 
@@ -86,8 +90,14 @@ class RoleFitScorer:
         for eng_title in AI_ENGINEER_TITLES:
             if eng_title in t:
                 return 1.0
+        # Multi-word AI/ML titles the exact set misses (e.g. "Recommendation
+        # Systems Engineer"): an engineering role word plus an in-scope ML token.
+        # Word-boundary matched so "search" can't fire inside "research".
+        if (self._title_contains_word(t, _ROLE_WORDS)
+                and self._title_contains_word(t, ML_INSCOPE_TOKENS)):
+            return 1.0
         # Partial credit for adjacent titles
-        if any(kw in t for kw in ["engineer", "scientist", "developer", "architect"]):
+        if any(kw in t for kw in _ROLE_WORDS):
             return 0.5
         if any(kw in t for kw in ["analyst", "researcher", "lead"]):
             return 0.3
