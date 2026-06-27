@@ -244,31 +244,79 @@ def _find_skills(text: str) -> list[str]:
     return found
 
 
-def _extract_experience(text: str) -> tuple[int, int]:
-    """Pull the YoE band from the JD. Defaults to the senior 5-9 band."""
+# YoE patterns + experience cues. We prefer a band stated *near* an experience
+# cue so a stray "5 years ago we founded" can't hijack the range.
+_RANGE_RE = re.compile(r"(\d{1,2})\s*(?:-|–|—|to)\s*(\d{1,2})\s*\+?\s*(?:years|yrs?)")
+_OPEN_RE = re.compile(r"(\d{1,2})\s*\+?\s*(?:years|yrs?)")
+_EXP_CUE_RE = re.compile(r"experience|minimum|at least|require")
+
+
+def _match_band(text: str) -> tuple[int, int] | None:
+    """First YoE band in `text`: an explicit range, else open-ended "N+ years"."""
     # Range: "5-9 years", "5–9 years", "5 to 9 years"
-    m = re.search(r"(\d{1,2})\s*(?:-|–|—|to)\s*(\d{1,2})\s*\+?\s*(?:years|yrs?)", text)
+    m = _RANGE_RE.search(text)
     if m:
         lo, hi = int(m.group(1)), int(m.group(2))
         return (lo, hi) if lo <= hi else (hi, lo)
     # Open-ended: "5+ years", "at least 5 years" → cap the band at min+4.
-    m = re.search(r"(\d{1,2})\s*\+?\s*(?:years|yrs?)", text)
+    m = _OPEN_RE.search(text)
     if m:
         lo = int(m.group(1))
         return lo, lo + 4
-    return 5, 9
+    return None
+
+
+def _extract_experience(text: str) -> tuple[int, int]:
+    """Pull the YoE band from the JD. Defaults to the senior 5-9 band.
+
+    Prefer a band stated next to an experience cue (experience/minimum/require/
+    at least) — a tight window around the cue — before falling back to the first
+    band anywhere, so a stray "5 years ago" can't hijack the range.
+    """
+    for cue in _EXP_CUE_RE.finditer(text):
+        band = _match_band(text[max(0, cue.start() - 12): cue.end() + 50])
+        if band:
+            return band
+    return _match_band(text) or (5, 9)
+
+
+# Role nouns that mark a line as a job title (word-boundary matched). Broad on
+# purpose — the demo accepts arbitrary (non-AI) JDs.
+_TITLE_ROLE_TOKENS: tuple[str, ...] = (
+    "engineer", "scientist", "developer", "architect", "manager", "designer",
+    "analyst", "specialist", "lead", "consultant", "researcher",
+)
+_TITLE_SCAN_LINES = 12  # only look this far down for a title-looking line
+
+
+def _looks_like_title(line: str) -> bool:
+    t = line.lower()
+    return any(re.search(r"\b" + tok + r"\b", t) for tok in _TITLE_ROLE_TOKENS)
+
+
+def _clean_title_line(line: str) -> str:
+    """Strip boilerplate prefixes and trailing qualifiers from a candidate line."""
+    line = re.sub(r"^(job description|role|title|position)\s*[:\-]\s*", "", line, flags=re.I)
+    return re.split(r"\s*[—–|]\s*", line)[0].strip()
 
 
 def _extract_title(jd_text: str) -> str:
-    """First meaningful line, minus boilerplate prefixes and trailing qualifiers."""
-    for line in jd_text.splitlines():
-        line = line.strip()
+    """Prefer the first title-looking line (carries a role noun) near the top of
+    the JD; fall back to the first meaningful line (previous behavior)."""
+    cleaned: list[str] = []
+    for raw in jd_text.splitlines():
+        raw = raw.strip()
+        if not raw:
+            continue
+        line = _clean_title_line(raw)
         if not line:
             continue
-        line = re.sub(r"^(job description|role|title|position)\s*[:\-]\s*", "", line, flags=re.I)
-        line = re.split(r"\s*[—–|]\s*", line)[0].strip()
-        return line[:80] or "Engineer"
-    return "Engineer"
+        cleaned.append(line)
+        if _looks_like_title(line):
+            return line[:80]
+        if len(cleaned) >= _TITLE_SCAN_LINES:
+            break
+    return (cleaned[0][:80] if cleaned else "Engineer") or "Engineer"
 
 
 def _keyword_fallback(jd_text: str) -> ParsedJD:

@@ -60,3 +60,32 @@ def test_keyword_fallback_on_real_jd():
     # The JD is a senior 5–9 AI role.
     assert (parsed.min_experience_years, parsed.max_experience_years) == (5, 9)
     assert parsed.required_skills, "required skills must not be empty"
+
+
+# ── title & experience locality ──────────────────────────────────────────────
+
+def test_extract_title_skips_non_title_first_line():
+    """A JD opening with 'About Us' still finds the real title further down."""
+    jd = "About Us\nWe are a great company.\n\nSenior Machine Learning Engineer\nDo ML."
+    assert _keyword_fallback(jd).title == "Senior Machine Learning Engineer"
+
+
+def test_extract_title_first_line_fallback():
+    """No title-looking line anywhere → fall back to the first meaningful line."""
+    jd = "Growth Hacker Extraordinaire\nWe do growth."
+    assert _keyword_fallback(jd).title == "Growth Hacker Extraordinaire"
+
+
+def test_extract_experience_prefers_cue_locality():
+    """An open band by an experience cue wins over a stray earlier 'N years ago'."""
+    jd = ("AI Engineer\n"
+          "We raised our seed round 5 years ago and never looked back.\n"
+          "Minimum experience: 8+ years shipping ML systems.")
+    parsed = _keyword_fallback(jd)
+    assert (parsed.min_experience_years, parsed.max_experience_years) == (8, 12)
+
+
+def test_extract_experience_default_band():
+    jd = "AI Engineer\nWe build cool stuff with no stated band."
+    parsed = _keyword_fallback(jd)
+    assert (parsed.min_experience_years, parsed.max_experience_years) == (5, 9)
