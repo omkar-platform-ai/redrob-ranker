@@ -5,3 +5,8 @@
 # public demo with no auth or secrets, so XSRF protection can be safely disabled.
 enableXsrfProtection = false
 maxUploadSize = 200
+# Disable the local-sources file watcher. It introspects torch.classes, which on
+# torch>=2.6 raises a scary-but-harmless warning ("Examining the path of
+# torch.classes raised...") on every script run. No files change at runtime in
+# the deployed image, so hot-reload watching isn't needed.
+fileWatcherType = "none"

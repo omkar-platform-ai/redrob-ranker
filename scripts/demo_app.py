@@ -105,57 +105,86 @@ jd_text = st.text_area(
     placeholder="Paste the full job description here...",
 )
 
-uploaded = st.file_uploader("Candidate JSONL (≤100 candidates)", type=["jsonl", "json"])
+uploaded = st.file_uploader(
+    "Candidate JSONL (≤100 candidates) — optional. Leave empty to rank the "
+    "built-in 100-candidate sample (fast: no per-candidate embedding at runtime).",
+    type=["jsonl", "json"],
+)
 
-if st.button("🚀 Run Ranking", type="primary", disabled=not (jd_text and uploaded)):
+if st.button("🚀 Run Ranking", type="primary", disabled=not jd_text):
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
-    # The embedding model runs on the HF free-tier CPU (~34x slower than a
-    # laptop), so embedding dominates runtime. Show staged progress so the demo
-    # never looks frozen while it works. The ranking logic itself is unchanged.
+    # With no upload we load a pre-built sample index (built at Docker image
+    # time), so the demo only embeds the JD — seconds, not the ~1 min that
+    # embedding 100 candidates costs on the HF free-tier CPU. Ranking logic is
+    # unchanged either way.
     with st.status("Running ranking pipeline...", expanded=True) as status:
         try:
-            st.write("Parsing upload...")
-            # utf-8-sig strips a leading BOM; accept both JSON arrays and JSONL
-            raw = uploaded.read().decode("utf-8-sig")
-            candidates_raw = _load_candidates(raw)
-            if not candidates_raw:
-                raise ValueError(
-                    "No candidates found in the upload. Expected JSONL (one JSON "
-                    "object per line) or a JSON array of candidate objects."
-                )
-
             from src.parsers.candidate import parse_redrob_candidate
             from src.parsers.jd import _keyword_fallback
             from src.embedder import get_embedder
             from src.index import build_index, query_index
             from src.ranker import RankingEngine
             from src.config import EMBED_BATCH_SIZE, TOP_K_RETRIEVE
+            import faiss
 
-            st.write(f"Parsed {len(candidates_raw)} candidates - parsing JD...")
+            SAMPLE_INDEX_DIR = Path(__file__).resolve().parent.parent / "sample_index"
+
+            st.write("Parsing JD...")
             parsed_jd = _keyword_fallback(jd_text)  # fast fallback for demo
             embedder = get_embedder()
 
-            candidates = [parse_redrob_candidate(r) for r in candidates_raw]
-            texts = [c["embedding_text"] for c in candidates]
-            n_batches = max(1, (len(texts) + EMBED_BATCH_SIZE - 1) // EMBED_BATCH_SIZE)
-            st.write(
-                f"Embedding {len(texts)} candidates on the free-tier CPU "
-                f"(~{n_batches} batch{'es' if n_batches != 1 else ''} at ~45s/batch "
-                f"- the slow step, please wait)..."
-            )
-            embeddings = embedder.embed_batch(texts)
+            if uploaded is not None:
+                # ── Upload path: parse + embed the provided candidates at runtime ──
+                st.write("Parsing upload...")
+                raw = uploaded.read().decode("utf-8-sig")  # strips a leading BOM
+                candidates_raw = _load_candidates(raw)
+                if not candidates_raw:
+                    raise ValueError(
+                        "No candidates found in the upload. Expected JSONL (one JSON "
+                        "object per line) or a JSON array of candidate objects."
+                    )
+                candidates = [parse_redrob_candidate(r) for r in candidates_raw]
+                texts = [c["embedding_text"] for c in candidates]
+                n_batches = max(1, (len(texts) + EMBED_BATCH_SIZE - 1) // EMBED_BATCH_SIZE)
+                st.write(
+                    f"Embedding {len(texts)} candidates on CPU "
+                    f"(~{n_batches} batch{'es' if n_batches != 1 else ''}; the slow step, "
+                    f"please wait)..."
+                )
+                embeddings = embedder.embed_batch(texts)
+                candidate_ids = [c["candidate_id"] for c in candidates]
+                index = build_index(embeddings, candidate_ids)
+                cands_by_id = {c["candidate_id"]: c for c in candidates}
+            else:
+                # ── Fast path: load the pre-built sample index (no embedding) ──
+                idx_file = SAMPLE_INDEX_DIR / "candidates.faiss"
+                if not idx_file.exists():
+                    raise FileNotFoundError(
+                        "No candidate upload and no built-in sample index found. "
+                        "Either upload a candidate file, or build the sample index "
+                        "first: python scripts/build_sample_index.py"
+                    )
+                st.write("Loading pre-built sample index (100 candidates, no embedding)...")
+                index = faiss.read_index(str(idx_file))
+                candidate_ids = json.loads(
+                    (SAMPLE_INDEX_DIR / "candidate_ids.json").read_text()
+                )
+                cache = []
+                with open(SAMPLE_INDEX_DIR / "parsed_candidates.jsonl", encoding="utf-8") as f:
+                    for line in f:
+                        if line.strip():
+                            cache.append(json.loads(line))
+                candidates = cache
+                cands_by_id = {c["candidate_id"]: c for c in candidates}
 
             st.write("Embedding job description (cached on repeat runs)...")
             jd_vec = embedder.embed_text(parsed_jd.to_embedding_text())
 
-            st.write("Building index + ranking...")
-            index = build_index(embeddings, [c["candidate_id"] for c in candidates])
+            st.write("Ranking...")
             k = min(len(candidates), TOP_K_RETRIEVE)
-            ann_results = query_index(index, [c["candidate_id"] for c in candidates], jd_vec, k)
-
-            cands_by_id = {c["candidate_id"]: c for c in candidates}
+            ann_results = query_index(index, candidate_ids, jd_vec, k)
             engine = RankingEngine()
             ranked = engine.rank(cands_by_id, ann_results, parsed_jd)
             ranked = _demo_demote_excluded(ranked)   # demo-only polish, NOT in production

@@ -3,6 +3,7 @@
 
 # Pre-computed artifacts (large, machine-specific)
 data/index/
+sample_index/
 *.faiss
 *.npy
 
