@@ -159,6 +159,7 @@ _SKILL_VOCAB: tuple[str, ...] = (
     "embeddings", "retrieval", "ranking", "recommendation", "search", "nlp",
     "llm", "gpt", "openai", "fine-tuning", "lora", "qlora", "peft", "rag",
     "pytorch", "tensorflow", "bert", "xgboost", "learning to rank",
+    "ndcg", "mrr",
     "sentence-transformers", "bge", "huggingface", "transformers",
     "vector database", "faiss", "pinecone", "weaviate", "qdrant", "milvus",
     "opensearch", "ray", "vllm", "triton", "mlflow",
@@ -184,6 +185,7 @@ _SKILL_ALIASES: dict[str, str] = {
     "postgresql": "postgres",
     "sentence transformers": "sentence-transformers",
     "hugging face": "huggingface",
+    "learning-to-rank": "learning to rank",
 }
 
 # Canonical display casing for the output chips (LLM, FAISS, PyTorch). Anything
@@ -193,6 +195,7 @@ _SKILL_DISPLAY: dict[str, str] = {
     "faiss": "FAISS", "pytorch": "PyTorch", "tensorflow": "TensorFlow",
     "bert": "BERT", "xgboost": "XGBoost", "lora": "LoRA", "qlora": "QLoRA",
     "peft": "PEFT", "bge": "BGE", "huggingface": "Hugging Face", "vllm": "vLLM",
+    "ndcg": "NDCG", "mrr": "MRR",
     "mlflow": "MLflow", "sentence-transformers": "sentence-transformers",
     "learning to rank": "learning to rank", "vector database": "vector database",
     "pinecone": "Pinecone", "weaviate": "Weaviate", "qdrant": "Qdrant",
@@ -246,16 +249,28 @@ def _find_skills(text: str) -> list[str]:
     Aliases (k8s→kubernetes, golang→go) fold to their canonical skill; results are
     de-duplicated in vocab order and returned in display casing (LLM, FAISS,
     PyTorch). Boundary-aware so "go" can't fire inside "google" nor "ml" in "html".
+    A sub-token wholly inside an already-matched longer skill is skipped, so
+    "transformers" isn't double-counted inside "sentence-transformers" (the hyphen
+    makes it boundary-match) — but a standalone "Transformers" still registers.
     """
     text = text.lower()
     found: list[str] = []
     seen: set[str] = set()
+    spans: list[tuple[int, int]] = []  # char spans of skills already matched
     for pattern, canon in _SKILL_PATTERNS:
         if canon in seen:
             continue
-        if re.search(r"(?<![a-z0-9+#])" + re.escape(pattern) + r"(?![a-z0-9+#])", text):
-            seen.add(canon)
-            found.append(_display_skill(canon))
+        rx = r"(?<![a-z0-9+#])" + re.escape(pattern) + r"(?![a-z0-9+#])"
+        span = next(
+            (m.span() for m in re.finditer(rx, text)
+             if not any(s <= m.start() and m.end() <= e for s, e in spans)),
+            None,
+        )
+        if span is None:
+            continue
+        seen.add(canon)
+        spans.append(span)
+        found.append(_display_skill(canon))
     return found
 
 

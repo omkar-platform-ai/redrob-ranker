@@ -48,6 +48,30 @@ def test_find_skills_boundary_no_false_positives():
     assert _find_skills("we use google docs and write html") == []
 
 
+def test_find_skills_subtoken_not_double_counted():
+    """'transformers' must not also fire inside 'sentence-transformers'."""
+    got = _find_skills("we deploy sentence-transformers in production")
+    assert got == ["sentence-transformers"]
+    assert "Transformers" not in got
+
+
+def test_find_skills_standalone_subtoken_still_matches():
+    """A genuine standalone 'Transformers' still registers."""
+    got = _find_skills("we fine-tune Transformers with PyTorch")
+    assert "Transformers" in got
+
+
+def test_find_skills_eval_metrics_detected():
+    """Ranking eval metrics are now in vocab and display-cased."""
+    got = set(_find_skills("evaluate with ndcg and mrr offline"))
+    assert {"NDCG", "MRR"} <= got
+
+
+def test_find_skills_learning_to_rank_alias():
+    """Hyphenated 'learning-to-rank' folds to the canonical skill."""
+    assert "learning to rank" in _find_skills("experience with learning-to-rank models")
+
+
 # ── full keyword fallback on the real JD ─────────────────────────────────────
 
 def test_keyword_fallback_on_real_jd():
