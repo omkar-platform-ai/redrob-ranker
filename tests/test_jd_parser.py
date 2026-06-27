@@ -89,3 +89,35 @@ def test_extract_experience_default_band():
     jd = "AI Engineer\nWe build cool stuff with no stated band."
     parsed = _keyword_fallback(jd)
     assert (parsed.min_experience_years, parsed.max_experience_years) == (5, 9)
+
+
+# ── section-aware exclusion ───────────────────────────────────────────────────
+
+def test_excluded_block_skill_dropped_from_nice():
+    """A skill mentioned only inside a 'we do NOT want' block is dropped."""
+    jd = ("Senior AI Engineer\n"
+          "Requirements: strong Python and embeddings experience.\n"
+          "Nice to have: FAISS experience.\n"
+          "Things we explicitly do NOT want: React-only frontend folks.\n")
+    parsed = _keyword_fallback(jd)
+    skills = set(parsed.required_skills) | set(parsed.nice_to_have_skills)
+    assert "React" not in skills           # only in the do-NOT-want block
+    assert "Python" in parsed.required_skills
+    assert "FAISS" in parsed.nice_to_have_skills
+
+
+def test_required_skill_survives_being_disparaged_later():
+    """A skill that is required AND later disparaged stays required."""
+    jd = ("AI Engineer\n"
+          "Requirements: production Python and FAISS.\n"
+          "Things we do NOT want: people who only know FAISS from a tutorial.\n")
+    parsed = _keyword_fallback(jd)
+    assert "FAISS" in parsed.required_skills
+
+
+def test_exclude_window_keeps_trailing_positive_skills():
+    """The exclude window must not swallow a later positive section: the real JD's
+    'recommendation' (in 'how to read between the lines') stays a skill."""
+    parsed = _keyword_fallback(JD_PATH.read_text(encoding="utf-8"))
+    skills = set(parsed.required_skills) | set(parsed.nice_to_have_skills)
+    assert "Recommendation" in skills

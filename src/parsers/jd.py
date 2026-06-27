@@ -219,6 +219,21 @@ _PREFERRED_MARKERS: tuple[str, ...] = (
     "bonus", "we'd like you to have", "would like you to have",
 )
 
+# Headings that begin a "we do NOT want / disqualifiers" block. A skill mentioned
+# only inside such a block is dropped from nice-to-have (never from required).
+_EXCLUDE_MARKERS: tuple[str, ...] = (
+    "do not want", "don't want", "explicitly do not", "not a fit",
+    "disqualif", "red flags", "we will not move forward",
+)
+# Positive-section headings — used only to bound how far an exclusion block reaches
+# (so a later "ideal candidate" section isn't swallowed). The bare word "required"
+# is omitted on purpose: it appears in "experience required" near the top.
+_REQUIRED_MARKERS: tuple[str, ...] = (
+    "must have", "must-have", "requirements", "responsibilities",
+    "you absolutely need", "what we need", "what you'll do",
+)
+_EXCLUDE_WINDOW = 600  # chars an exclusion block reaches if no later section caps it
+
 
 def _display_skill(canon: str) -> str:
     """Canonical skill → display casing (LLM, FAISS, PyTorch); Title-case fallback."""
@@ -319,6 +334,30 @@ def _extract_title(jd_text: str) -> str:
     return (cleaned[0][:80] if cleaned else "Engineer") or "Engineer"
 
 
+def _excluded_skills(text: str) -> set[str]:
+    """Skills appearing inside a 'we do NOT want / disqualifiers' block.
+
+    Each exclude marker opens a window that ends at the next positive-section
+    heading or after _EXCLUDE_WINDOW chars (whichever comes first), so a distant
+    positive section (e.g. 'how to read between the lines') isn't swallowed.
+    """
+    section_starts = sorted(
+        p
+        for markers in (_REQUIRED_MARKERS, _PREFERRED_MARKERS)
+        for m in markers
+        if (p := text.find(m)) != -1
+    )
+    excluded: set[str] = set()
+    for marker in _EXCLUDE_MARKERS:
+        pos = text.find(marker)
+        if pos == -1:
+            continue
+        nexts = [b for b in section_starts if b > pos]
+        end = min(min(nexts, default=len(text)), pos + _EXCLUDE_WINDOW)
+        excluded.update(_find_skills(text[pos:end]))
+    return excluded
+
+
 def _keyword_fallback(jd_text: str) -> ParsedJD:
     """JD-aware keyword extraction (no LLM, no network).
 
@@ -345,6 +384,11 @@ def _keyword_fallback(jd_text: str) -> ParsedJD:
         nice = [s for s in all_skills if s not in req_set]
     else:
         required, nice = all_skills, []
+
+    # Drop skills that surface only inside a "we do NOT want" block. Required is
+    # never touched — a genuinely required skill stays even if disparaged later.
+    excluded = _excluded_skills(text)
+    nice = [s for s in nice if s not in excluded]
 
     # Domain is keyed off the TITLE (the JD body often mentions other domains).
     if any(k in tl for k in ("platform", "devops", "sre", "infrastructure", "site reliability")):
