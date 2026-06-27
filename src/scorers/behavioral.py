@@ -20,6 +20,11 @@ from src.config import (
     CONVERSION_NEUTRAL,
     CONVERSION_OFFER_WEIGHT,
     CONVERSION_WEIGHT,
+    ENGAGEMENT_APPS_WEIGHT,
+    ENGAGEMENT_OPEN_TO_WORK_WEIGHT,
+    ENGAGEMENT_SAVED_WEIGHT,
+    ENGAGEMENT_SEARCH_WEIGHT,
+    ENGAGEMENT_VIEWS_WEIGHT,
     ENGAGEMENT_WEIGHT,
     GITHUB_SCORE_CAP,
     NOTICE_WEIGHT,
@@ -62,8 +67,11 @@ class BehavioralScorer:
         search = min(s.get("search_appearances_last_30d", 0), 200) / 200
         open_to_work = 1.0 if s.get("open_to_work", False) else 0.0
         return (
-            0.25 * apps + 0.20 * views + 0.15 * saved
-            + 0.15 * search + 0.25 * open_to_work
+            ENGAGEMENT_APPS_WEIGHT * apps
+            + ENGAGEMENT_VIEWS_WEIGHT * views
+            + ENGAGEMENT_SAVED_WEIGHT * saved
+            + ENGAGEMENT_SEARCH_WEIGHT * search
+            + ENGAGEMENT_OPEN_TO_WORK_WEIGHT * open_to_work
         )
 
     def _conversion(self, s: dict) -> float:

@@ -56,6 +56,13 @@ RESPONSE_RATE_WEIGHT: float = 0.15
 CONVERSION_WEIGHT: float = 0.12   # NEW — graded hireability (offer/interview/github)
 NOTICE_WEIGHT: float = 0.08       # was 0.10
 
+# Engagement sub-weights (within the ENGAGEMENT_WEIGHT component; sum to 1.0).
+ENGAGEMENT_APPS_WEIGHT: float = 0.25
+ENGAGEMENT_VIEWS_WEIGHT: float = 0.20
+ENGAGEMENT_SAVED_WEIGHT: float = 0.15
+ENGAGEMENT_SEARCH_WEIGHT: float = 0.15
+ENGAGEMENT_OPEN_TO_WORK_WEIGHT: float = 0.25
+
 # ── Behavioral: conversion sub-component (graded hireability signals) ─────────
 # offer_acceptance_rate (-1..1) and github_activity_score (-1..100) carry a -1
 # sentinel for ~60-65% of candidates (no prior offers / no GitHub linked).
@@ -78,8 +85,6 @@ HIDDEN_GEM_BONUSES: dict[str, float] = {
     # conversion component. The career scorer still emits an "open_source" *reason*
     # tag (so reasoning can cite it), but applies no career bonus — avoiding
     # double-counting with the behavioral github term.
-    "side_projects":   0.04,
-    "publications":    0.05,
     "multi_promotion": 0.05,
 }
 HIDDEN_GEM_CAP: float = 0.15
@@ -102,6 +107,12 @@ SKILL_PROFICIENCY_WEIGHTS: dict[str, float] = {
 }
 SKILL_REQUIRED_WEIGHT: float = 0.75
 SKILL_OPTIONAL_WEIGHT: float = 0.25
+# Per-skill match weight: blend of self-declared proficiency, usage duration, and
+# peer endorsements (sum to 1.0). Named *_FACTOR to avoid confusion with the
+# SKILL_PROFICIENCY_WEIGHTS proficiency-level map above.
+SKILL_PROFICIENCY_FACTOR: float = 0.70
+SKILL_DURATION_FACTOR: float = 0.20
+SKILL_ENDORSEMENT_FACTOR: float = 0.10
 SKILL_DURATION_CAP_MONTHS: int = 24   # score maxes at 2 years of use
 # Weight on Redrob's measured `assessment_score` when a skill has one (0 = ignore
 # the objective score, 1 = use it exclusively). 0.5 gives objective proficiency
@@ -109,6 +120,11 @@ SKILL_DURATION_CAP_MONTHS: int = 24   # score maxes at 2 years of use
 SKILL_ASSESSMENT_BLEND: float = 0.50
 
 # ── Role-fit scorer ───────────────────────────────────────────────────────────
+# Base sub-weights: title + company-type + location + YoE band (sum to 1.0).
+ROLE_FIT_TITLE_WEIGHT: float = 0.40
+ROLE_FIT_COMPANY_WEIGHT: float = 0.35
+ROLE_FIT_LOCATION_WEIGHT: float = 0.15
+ROLE_FIT_YOE_WEIGHT: float = 0.10
 # Titles that signal genuine ML/AI engineering background
 AI_ENGINEER_TITLES: frozenset[str] = frozenset({
     "ml engineer", "machine learning engineer", "ai engineer", "applied scientist",

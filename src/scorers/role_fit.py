@@ -36,6 +36,10 @@ from src.config import (
     LOCATION_TIER2,
     LOCATION_TIER2_RELOCATE,
     ML_INSCOPE_TOKENS,
+    ROLE_FIT_COMPANY_WEIGHT,
+    ROLE_FIT_LOCATION_WEIGHT,
+    ROLE_FIT_TITLE_WEIGHT,
+    ROLE_FIT_YOE_WEIGHT,
     TITLE_CHASING_MAX_TENURE_MONTHS,
     WORK_MODE_FIT,
     YOE_OVER_PENALTY_FLOOR,
@@ -58,10 +62,10 @@ class RoleFitScorer:
         )
 
         base = (
-            0.40 * title_s
-            + 0.35 * company_s
-            + 0.15 * location_s
-            + 0.10 * yoe_s
+            ROLE_FIT_TITLE_WEIGHT * title_s
+            + ROLE_FIT_COMPANY_WEIGHT * company_s
+            + ROLE_FIT_LOCATION_WEIGHT * location_s
+            + ROLE_FIT_YOE_WEIGHT * yoe_s
         )
 
         # Hard penalties

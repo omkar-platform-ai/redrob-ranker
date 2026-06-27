@@ -20,7 +20,10 @@ from rapidfuzz import fuzz
 from src.config import (
     SKILL_ASSESSMENT_BLEND,
     SKILL_DURATION_CAP_MONTHS,
+    SKILL_DURATION_FACTOR,
+    SKILL_ENDORSEMENT_FACTOR,
     SKILL_OPTIONAL_WEIGHT,
+    SKILL_PROFICIENCY_FACTOR,
     SKILL_PROFICIENCY_WEIGHTS,
     SKILL_REQUIRED_WEIGHT,
 )
@@ -97,10 +100,14 @@ class SkillScorer:
         duration_bonus = duration / SKILL_DURATION_CAP_MONTHS
 
         endorsements = min(skill_meta.get("endorsements", 0), 50)
-        endorsement_bonus = endorsements / 50 * 0.10  # max 0.10
+        endorsement_bonus = endorsements / 50 * SKILL_ENDORSEMENT_FACTOR  # max = factor
 
         # Self-declared proficiency + duration + endorsements (subjective signals).
-        base = prof_w * 0.70 + duration_bonus * 0.20 + endorsement_bonus
+        base = (
+            prof_w * SKILL_PROFICIENCY_FACTOR
+            + duration_bonus * SKILL_DURATION_FACTOR
+            + endorsement_bonus
+        )
 
         # Blend in Redrob's measured assessment (0-100) when present — the only
         # objective proficiency signal. A strong measured score lifts a modest
