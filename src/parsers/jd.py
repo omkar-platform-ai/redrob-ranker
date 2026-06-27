@@ -149,22 +149,68 @@ def _parse_llm_response(raw: str) -> ParsedJD:
 # against the JD text on non-alphanumeric boundaries (so "c++", "ci/cd" match
 # cleanly). Covers ML/AI, platform/DevOps, cloud, data, and general SWE so the
 # sandbox adapts to varied JDs WITHOUT any LLM/network call (rank-time safe).
+# These are the canonical (lowercase) match terms; aliases fold to them and
+# output is display-cased — see _SKILL_ALIASES / _SKILL_DISPLAY below.
 _SKILL_VOCAB: tuple[str, ...] = (
     # languages / general
-    "python", "golang", "go", "java", "javascript", "typescript", "c++", "c#",
-    "rust", "scala", "bash", "sql",
+    "python", "go", "java", "javascript", "typescript", "c++", "c#",
+    "rust", "scala", "bash", "sql", "react",
     # ml / ai
     "embeddings", "retrieval", "ranking", "recommendation", "search", "nlp",
-    "llm", "fine-tuning", "lora", "qlora", "peft", "rag", "pytorch",
-    "tensorflow", "bert", "xgboost", "learning to rank", "vector database",
-    "faiss", "transformers",
+    "llm", "gpt", "openai", "fine-tuning", "lora", "qlora", "peft", "rag",
+    "pytorch", "tensorflow", "bert", "xgboost", "learning to rank",
+    "sentence-transformers", "bge", "huggingface", "transformers",
+    "vector database", "faiss", "pinecone", "weaviate", "qdrant", "milvus",
+    "opensearch", "ray", "vllm", "triton", "mlflow",
     # platform / devops / cloud
     "kubernetes", "terraform", "docker", "ci/cd", "gitops", "argocd", "fluxcd",
     "helm", "ansible", "jenkins", "github actions", "prometheus", "grafana",
     "opentelemetry", "observability", "aws", "gcp", "azure", "linux",
     "networking", "iam", "backstage", "crossplane",
     # data
-    "spark", "kafka", "airflow", "snowflake", "elasticsearch",
+    "spark", "kafka", "airflow", "snowflake", "databricks", "elasticsearch",
+    "postgres", "redis", "mongodb", "pandas", "numpy",
+)
+
+# Aliases fold to a canonical vocab term so spelling variants aren't dropped.
+# Keys are lowercase; every value must be a member of _SKILL_VOCAB.
+_SKILL_ALIASES: dict[str, str] = {
+    "k8s": "kubernetes",
+    "golang": "go",
+    "llms": "llm",
+    "vector db": "vector database",
+    "vector databases": "vector database",
+    "fine tuning": "fine-tuning",
+    "postgresql": "postgres",
+    "sentence transformers": "sentence-transformers",
+    "hugging face": "huggingface",
+}
+
+# Canonical display casing for the output chips (LLM, FAISS, PyTorch). Anything
+# not listed falls back to str.title().
+_SKILL_DISPLAY: dict[str, str] = {
+    "llm": "LLM", "gpt": "GPT", "openai": "OpenAI", "nlp": "NLP", "rag": "RAG",
+    "faiss": "FAISS", "pytorch": "PyTorch", "tensorflow": "TensorFlow",
+    "bert": "BERT", "xgboost": "XGBoost", "lora": "LoRA", "qlora": "QLoRA",
+    "peft": "PEFT", "bge": "BGE", "huggingface": "Hugging Face", "vllm": "vLLM",
+    "mlflow": "MLflow", "sentence-transformers": "sentence-transformers",
+    "learning to rank": "learning to rank", "vector database": "vector database",
+    "pinecone": "Pinecone", "weaviate": "Weaviate", "qdrant": "Qdrant",
+    "milvus": "Milvus", "opensearch": "OpenSearch", "elasticsearch": "Elasticsearch",
+    "kubernetes": "Kubernetes", "ci/cd": "CI/CD", "gitops": "GitOps",
+    "argocd": "ArgoCD", "fluxcd": "FluxCD", "github actions": "GitHub Actions",
+    "opentelemetry": "OpenTelemetry", "aws": "AWS", "gcp": "GCP", "iam": "IAM",
+    "sql": "SQL", "c++": "C++", "c#": "C#", "javascript": "JavaScript",
+    "typescript": "TypeScript", "postgres": "Postgres", "mongodb": "MongoDB",
+    "react": "React", "ray": "Ray", "triton": "Triton", "numpy": "NumPy",
+    "databricks": "Databricks", "go": "Go",
+}
+
+# (match-term, canonical) pairs: every vocab term maps to itself; every alias
+# maps to its canonical. Vocab first so canonical skills keep their vocab order.
+_SKILL_PATTERNS: tuple[tuple[str, str], ...] = (
+    tuple((s, s) for s in _SKILL_VOCAB)
+    + tuple((a, c) for a, c in _SKILL_ALIASES.items())
 )
 
 # Headings after which skills are "preferred" rather than "required".
@@ -174,12 +220,28 @@ _PREFERRED_MARKERS: tuple[str, ...] = (
 )
 
 
+def _display_skill(canon: str) -> str:
+    """Canonical skill → display casing (LLM, FAISS, PyTorch); Title-case fallback."""
+    return _SKILL_DISPLAY.get(canon, canon.title())
+
+
 def _find_skills(text: str) -> list[str]:
-    """Vocabulary skills present in `text` (lowercased), in vocab order."""
-    return [
-        skill for skill in _SKILL_VOCAB
-        if re.search(r"(?<![a-z0-9+#])" + re.escape(skill) + r"(?![a-z0-9+#])", text)
-    ]
+    """Vocab skills present in `text`, normalized to canonical display names.
+
+    Aliases (k8s→kubernetes, golang→go) fold to their canonical skill; results are
+    de-duplicated in vocab order and returned in display casing (LLM, FAISS,
+    PyTorch). Boundary-aware so "go" can't fire inside "google" nor "ml" in "html".
+    """
+    text = text.lower()
+    found: list[str] = []
+    seen: set[str] = set()
+    for pattern, canon in _SKILL_PATTERNS:
+        if canon in seen:
+            continue
+        if re.search(r"(?<![a-z0-9+#])" + re.escape(pattern) + r"(?![a-z0-9+#])", text):
+            seen.add(canon)
+            found.append(_display_skill(canon))
+    return found
 
 
 def _extract_experience(text: str) -> tuple[int, int]:
