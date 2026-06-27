@@ -83,6 +83,64 @@ def _demo_demote_excluded(ranked: list) -> list:
     return ranked
 
 
+# Inline chip colors (bg, text) — Streamlit 1.40 has no markdown badge syntax, so
+# we render real HTML spans via unsafe_allow_html.
+_CHIP_COLORS = {
+    "blue": ("#e3f0ff", "#0b5cab"),
+    "green": ("#e4f7e7", "#1b7a32"),
+    "red": ("#fde8e8", "#b42318"),
+}
+
+
+def _badges(items: list[str], color: str) -> str:
+    """Render a skill list as inline HTML chips, or '—' if empty."""
+    if not items:
+        return "—"
+    bg, fg = _CHIP_COLORS[color]
+    chips = [
+        f"<span style='background:{bg};color:{fg};padding:2px 10px;border-radius:12px;"
+        f"margin:2px 4px 2px 0;display:inline-block;font-size:0.85em;white-space:nowrap'>"
+        f"{s}</span>"
+        for s in items
+    ]
+    return "".join(chips)
+
+
+def _render_jd_keywords(parsed_jd) -> None:
+    """Show the keyword extraction (no LLM) on screen, grouped by category.
+
+    Surfaces what the engine pulled from the pasted JD *before* the ranking
+    results, so it's clear the role was understood. Pure display of the existing
+    `ParsedJD` fields — no scoring side effects.
+    """
+    st.subheader("🔑 Extracted from the Job Description")
+    st.caption("Keyword extraction — no LLM, no network (rank-time safe)")
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Role", parsed_jd.title)
+    col2.metric("Seniority", parsed_jd.seniority_level.title())
+    col3.metric(
+        "Experience", f"{parsed_jd.min_experience_years}–{parsed_jd.max_experience_years} yrs"
+    )
+    st.markdown(f"**Domain:** {parsed_jd.domain}")
+
+    st.markdown(
+        f"**Required skills:** {_badges(parsed_jd.required_skills, 'blue')}",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"**Nice-to-have skills:** {_badges(parsed_jd.nice_to_have_skills, 'green')}",
+        unsafe_allow_html=True,
+    )
+    if parsed_jd.disqualifiers:
+        # "JD-specific flags" not "Disqualifiers": the detectors are intentionally
+        # narrow/JD-tuned, so this label reads more honestly than a hard verdict.
+        st.markdown(
+            f"**JD-specific flags:** {_badges(parsed_jd.disqualifiers, 'red')}",
+            unsafe_allow_html=True,
+        )
+
+
 st.set_page_config(page_title="Redrob Ranker — Velocity Labs", page_icon="🎯", layout="wide")
 
 st.title("🎯 Redrob Intelligent Candidate Ranker")
@@ -91,7 +149,7 @@ st.caption("Velocity Labs · INDIA.RUNS Hackathon — Track 01")
 with st.expander("How it works", expanded=False):
     st.markdown("""
     **Pipeline:**
-    1. Upload a JSONL file with ≤100 candidates (redrob schema)
+    1. Upload a JSONL/JSON file with ≤100 candidates (redrob schema)
     2. Paste the job description
     3. Click **Run Ranking** — outputs a ranked CSV
 
@@ -198,6 +256,9 @@ if st.button("🚀 Run Ranking", type="primary", disabled=not jd_text):
             raise
 
     # Outputs render below the (now collapsed) status so the CSV + table stay visible.
+    # Show the JD keyword extraction first, then the ranked results.
+    _render_jd_keywords(parsed_jd)
+
     import io
     import csv
     buf = io.StringIO()
