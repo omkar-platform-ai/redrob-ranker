@@ -160,3 +160,24 @@ def test_role_fit_jd_disqualifier_cv_speech():
         cv, ParsedJD(disqualifiers=["cv/speech/robotics primary"]))
     without_dq = RoleFitScorer().score(cv, ParsedJD(disqualifiers=[]))
     assert with_dq < without_dq
+
+
+def test_tenure_chasing_multiplier_gradient():
+    """Title-chasing penalty ramps with tenure instead of a hard 18mo cliff."""
+    from src.config import JD_DISQUALIFIER_MULTIPLIER
+    m = RoleFitScorer._tenure_chasing_multiplier
+    assert m(6) == JD_DISQUALIFIER_MULTIPLIER       # full penalty
+    assert m(12) == JD_DISQUALIFIER_MULTIPLIER      # full penalty at the floor
+    assert m(18) == 1.0                             # no penalty at the ceiling
+    assert m(24) == 1.0                             # well above: no penalty
+    assert 0.90 < m(17.5) < 1.0                     # near-ceiling: near-full credit
+    assert m(13) < m(15) < m(17)                    # strictly increasing across the ramp
+
+
+def test_role_fit_title_chasing_gradient_orders_by_tenure():
+    """Through the full score: under the same title-chasing JD, a 17.5mo candidate
+    now beats a 12mo hopper (the gradient no longer flattens them together)."""
+    jd = ParsedJD(disqualifiers=["title-chasing every 1.5 years"])
+    near = RoleFitScorer().score(make_candidate(avg_tenure_months=17.5), jd)
+    hopper = RoleFitScorer().score(make_candidate(avg_tenure_months=12), jd)
+    assert near > hopper

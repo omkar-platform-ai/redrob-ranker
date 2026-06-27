@@ -160,7 +160,8 @@ YOE_OVER_PENALTY_FLOOR: float = 0.40       # over-qualified never scores below t
 # parsed_jd.disqualifiers was LLM-extracted but no scorer read it (latent bug).
 # Only reliably-computable predicates are wired; fuzzy JD disqualifiers
 # ("LLM-only <12mo", "pure research") remain JD text only by design.
-TITLE_CHASING_MAX_TENURE_MONTHS: int = 18   # "title-chasing every 1.5 years" → avg tenure < 18mo
+TITLE_CHASING_MAX_TENURE_MONTHS: int = 18   # at/above this avg tenure: no title-chasing penalty
+TITLE_CHASING_FULL_PENALTY_MONTHS: int = 12  # at/below this: full penalty; in between it ramps
 JD_DISQUALIFIER_MULTIPLIER: float = 0.50    # applied as a multiplier on the role-fit base
 # Domain tokens signalling the candidate's PRIMARY work is CV/speech/robotics
 # (out of scope for a text/retrieval/ranking ML role). Word-boundary matched so

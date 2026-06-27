@@ -40,6 +40,7 @@ from src.config import (
     ROLE_FIT_LOCATION_WEIGHT,
     ROLE_FIT_TITLE_WEIGHT,
     ROLE_FIT_YOE_WEIGHT,
+    TITLE_CHASING_FULL_PENALTY_MONTHS,
     TITLE_CHASING_MAX_TENURE_MONTHS,
     WORK_MODE_FIT,
     YOE_OVER_PENALTY_FLOOR,
@@ -117,10 +118,11 @@ class RoleFitScorer:
         if not dqs:
             return 1.0
         mult = 1.0
-        # Title-chasing / short tenure ("title-chasing every 1.5 years", "job-hopping")
+        # Title-chasing / short tenure ("title-chasing every 1.5 years", "job-hopping").
+        # Penalty ramps with tenure instead of a hard cliff, so a 17.5mo candidate
+        # isn't punished like a 6mo hopper.
         if any(tok in dqs for tok in ("chas", "hopping", "1.5", "short tenure", "job hop")):
-            if candidate.get("avg_tenure_months", 99) < TITLE_CHASING_MAX_TENURE_MONTHS:
-                mult *= JD_DISQUALIFIER_MULTIPLIER
+            mult *= self._tenure_chasing_multiplier(candidate.get("avg_tenure_months", 99))
         # CV / speech / robotics as the PRIMARY domain (out of scope for a
         # text/retrieval/ranking ML role). Suppressed when the title also carries
         # an in-scope ML token (an "ML Engineer" who touches vision stays clean).
@@ -136,6 +138,23 @@ class RoleFitScorer:
         """Word-boundary match so 'vision' doesn't hit 'division', 'ml' not 'html'."""
         t = (title or "").lower()
         return any(re.search(r"\b" + re.escape(tok) + r"\b", t) for tok in tokens)
+
+    @staticmethod
+    def _tenure_chasing_multiplier(avg_tenure_months: float) -> float:
+        """Title-chasing penalty as a gradient, not a cliff.
+
+        Full JD_DISQUALIFIER_MULTIPLIER at/below TITLE_CHASING_FULL_PENALTY_MONTHS,
+        easing linearly to 1.0 (no penalty) at TITLE_CHASING_MAX_TENURE_MONTHS. This
+        avoids a knife-edge where a 17.5mo tenure is punished like a 6mo one.
+        """
+        full = TITLE_CHASING_FULL_PENALTY_MONTHS
+        ceiling = TITLE_CHASING_MAX_TENURE_MONTHS
+        if avg_tenure_months >= ceiling:
+            return 1.0
+        if avg_tenure_months <= full:
+            return JD_DISQUALIFIER_MULTIPLIER
+        frac = (avg_tenure_months - full) / (ceiling - full)
+        return JD_DISQUALIFIER_MULTIPLIER + frac * (1.0 - JD_DISQUALIFIER_MULTIPLIER)
 
     def _company_type_score(self, candidate: dict) -> float:
         """Product company background scores higher than services/consulting."""
