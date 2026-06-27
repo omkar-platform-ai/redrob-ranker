@@ -5,6 +5,13 @@
 # public demo with no auth or secrets, so XSRF protection can be safely disabled.
 enableXsrfProtection = false
 maxUploadSize = 200
+# HF's reverse proxy strips the Sec-WebSocket-Extensions header, so Streamlit's
+# permessage-deflate compression negotiation fails and the /_stcore/stream
+# WebSocket drops + reconnects in a loop ("Connecting..." on every interaction).
+# Disabling compression makes the WebSocket survive behind the proxy. enableCORS
+# off is the standard reverse-proxy companion (safe: XSRF already off, no auth).
+enableWebsocketCompression = false
+enableCORS = false
 # Disable the local-sources file watcher. It introspects torch.classes, which on
 # torch>=2.6 raises a scary-but-harmless warning ("Examining the path of
 # torch.classes raised...") on every script run. No files change at runtime in
