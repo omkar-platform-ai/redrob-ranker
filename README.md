@@ -1,3 +1,13 @@
+---
+sdk: docker
+app_port: 7860
+title: Redrob Ranker
+emoji: 🎯
+colorFrom: blue
+colorTo: indigo
+pinned: false
+---
+
 # Redrob Ranker - VelocityLabs
 
 **INDIA.RUNS Hackathon · Track 01 · Intelligent Candidate Discovery & Ranking**
