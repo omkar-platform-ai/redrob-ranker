@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -144,26 +145,134 @@ def _parse_llm_response(raw: str) -> ParsedJD:
         return _keyword_fallback("")
 
 
+# Broad, domain-agnostic tech-skill vocabulary for the no-LLM fallback. Matched
+# against the JD text on non-alphanumeric boundaries (so "c++", "ci/cd" match
+# cleanly). Covers ML/AI, platform/DevOps, cloud, data, and general SWE so the
+# sandbox adapts to varied JDs WITHOUT any LLM/network call (rank-time safe).
+_SKILL_VOCAB: tuple[str, ...] = (
+    # languages / general
+    "python", "golang", "go", "java", "javascript", "typescript", "c++", "c#",
+    "rust", "scala", "bash", "sql",
+    # ml / ai
+    "embeddings", "retrieval", "ranking", "recommendation", "search", "nlp",
+    "llm", "fine-tuning", "lora", "qlora", "peft", "rag", "pytorch",
+    "tensorflow", "bert", "xgboost", "learning to rank", "vector database",
+    "faiss", "transformers",
+    # platform / devops / cloud
+    "kubernetes", "terraform", "docker", "ci/cd", "gitops", "argocd", "fluxcd",
+    "helm", "ansible", "jenkins", "github actions", "prometheus", "grafana",
+    "opentelemetry", "observability", "aws", "gcp", "azure", "linux",
+    "networking", "iam", "backstage", "crossplane",
+    # data
+    "spark", "kafka", "airflow", "snowflake", "elasticsearch",
+)
+
+# Headings after which skills are "preferred" rather than "required".
+_PREFERRED_MARKERS: tuple[str, ...] = (
+    "nice to have", "nice-to-have", "preferred", "good to have", "good-to-have",
+    "bonus", "we'd like you to have", "would like you to have",
+)
+
+
+def _find_skills(text: str) -> list[str]:
+    """Vocabulary skills present in `text` (lowercased), in vocab order."""
+    return [
+        skill for skill in _SKILL_VOCAB
+        if re.search(r"(?<![a-z0-9+#])" + re.escape(skill) + r"(?![a-z0-9+#])", text)
+    ]
+
+
+def _extract_experience(text: str) -> tuple[int, int]:
+    """Pull the YoE band from the JD. Defaults to the senior 5-9 band."""
+    # Range: "5-9 years", "5–9 years", "5 to 9 years"
+    m = re.search(r"(\d{1,2})\s*(?:-|–|—|to)\s*(\d{1,2})\s*\+?\s*(?:years|yrs?)", text)
+    if m:
+        lo, hi = int(m.group(1)), int(m.group(2))
+        return (lo, hi) if lo <= hi else (hi, lo)
+    # Open-ended: "5+ years", "at least 5 years" → cap the band at min+4.
+    m = re.search(r"(\d{1,2})\s*\+?\s*(?:years|yrs?)", text)
+    if m:
+        lo = int(m.group(1))
+        return lo, lo + 4
+    return 5, 9
+
+
+def _extract_title(jd_text: str) -> str:
+    """First meaningful line, minus boilerplate prefixes and trailing qualifiers."""
+    for line in jd_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        line = re.sub(r"^(job description|role|title|position)\s*[:\-]\s*", "", line, flags=re.I)
+        line = re.split(r"\s*[—–|]\s*", line)[0].strip()
+        return line[:80] or "Engineer"
+    return "Engineer"
+
+
 def _keyword_fallback(jd_text: str) -> ParsedJD:
-    """Minimal keyword extraction when LLM is unavailable."""
-    text_lower = jd_text.lower()
-    required = []
-    for skill in ["python", "embeddings", "faiss", "vector database", "retrieval",
-                  "ranking", "nlp", "pytorch", "tensorflow", "bert"]:
-        if skill in text_lower:
-            required.append(skill)
+    """JD-aware keyword extraction (no LLM, no network).
+
+    Used by the sandbox demo and whenever no LLM key is set. Parses the title,
+    experience band, and skills straight from the JD text so the ranking adapts
+    to any pasted role — without an LLM call, keeping the demo provably within the
+    'no LLM during ranking' constraint. The judged pipeline uses the LLM parse
+    (pre-compute); this is the offline equivalent.
+    """
+    text = jd_text.lower()
+    title = _extract_title(jd_text)
+    tl = title.lower()
+    min_yoe, max_yoe = _extract_experience(text)
+
+    all_skills = _find_skills(text)
+    # Split required vs nice-to-have at the first "preferred/nice-to-have" heading:
+    # skills appearing BEFORE it are required; those appearing ONLY after are
+    # nice-to-have. (A required skill repeated in a later example-stack stays
+    # required — avoids demoting headline skills mentioned twice.)
+    marker_positions = [text.find(m) for m in _PREFERRED_MARKERS if text.find(m) != -1]
+    if marker_positions:
+        required = _find_skills(text[:min(marker_positions)])
+        req_set = set(required)
+        nice = [s for s in all_skills if s not in req_set]
+    else:
+        required, nice = all_skills, []
+
+    # Domain is keyed off the TITLE (the JD body often mentions other domains).
+    if any(k in tl for k in ("platform", "devops", "sre", "infrastructure", "site reliability")):
+        domain = "platform engineering and DevOps"
+    elif any(k in tl for k in ("ml", "ai", "machine learning", "data scientist", "data science")):
+        domain = "ml/ai engineering"
+    elif "data engineer" in tl:
+        domain = "data engineering"
+    else:
+        domain = "software engineering"
+
+    seniority = next(
+        (s for s in ("principal", "staff", "lead", "senior", "junior") if s in tl),
+        "senior",
+    )
+
+    # Light, low-false-positive disqualifier detection — only the predicates the
+    # role-fit scorer actually reads (title-chasing, CV/speech/robotics, consulting).
+    disq: list[str] = []
+    if re.search(r"title[- ]?chas|every 1\.5 years|job[- ]?hop", text):
+        disq.append("title-chasing every 1.5 years")
+    if "computer vision" in text and "speech" in text and "robotics" in text:
+        disq.append("computer vision speech robotics primary")
+    if re.search(r"(only worked at|entire career)[^.]{0,40}(consult|tcs|infosys|wipro|accenture)", text):
+        disq.append("consulting-only background")
+
     return ParsedJD(
-        title="Senior AI Engineer",
-        required_skills=required or ["python", "embeddings", "retrieval"],
-        nice_to_have_skills=["lora", "qlora", "xgboost", "learning to rank"],
-        min_experience_years=5,
-        max_experience_years=9,
-        seniority_level="senior",
-        domain="ml/ai retrieval and ranking",
-        location_preferences=["Pune", "Noida"],
-        industry_preferences=["product companies"],
-        disqualifiers=["consulting-only", "no production deployment"],
-        raw_summary="Senior AI Engineer role focused on embeddings, retrieval, and ranking systems.",
+        title=title,
+        required_skills=required or ["python"],
+        nice_to_have_skills=nice,
+        min_experience_years=min_yoe,
+        max_experience_years=max_yoe,
+        seniority_level=seniority,
+        domain=domain,
+        location_preferences=[],
+        industry_preferences=[],
+        disqualifiers=disq,
+        raw_summary=" ".join(jd_text.split())[:280],
     )
 
 

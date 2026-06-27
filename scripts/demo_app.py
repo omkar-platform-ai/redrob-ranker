@@ -28,10 +28,11 @@ def _load_candidates(raw: str) -> list[dict]:
 
 # ── DEMO-ONLY ranking polish (NOT in the production ranker) ────────────────────
 # The production `rank.py` is the judged artifact (NDCG over 100K candidates with
-# the LLM JD parse). This sandbox demo parses the JD with the LLM when an API key
-# is set (so it adapts to any pasted JD), else falls back to keyword extraction.
-# Under the keyword fallback, JD-excluded profiles — consulting-only careers,
-# non-engineering titles, abroad candidates — can leak into the visible top-20.
+# the LLM JD parse, done in PRE-COMPUTE). This sandbox demo parses the JD with the
+# JD-aware KEYWORD extractor (no LLM, no network) so it adapts to any pasted JD
+# while staying provably within the "no LLM during ranking" constraint. Some
+# JD-excluded profiles — consulting-only careers, non-engineering titles, abroad
+# candidates — can still leak into the visible top-20, so we demote them below.
 #
 # To make the live demo convincing WITHOUT touching `src/` (production), we
 # re-score those excluded candidates with a stronger multiplier AFTER
@@ -123,23 +124,17 @@ if st.button("🚀 Run Ranking", type="primary", disabled=not jd_text):
     with st.status("Running ranking pipeline...", expanded=True) as status:
         try:
             from src.parsers.candidate import parse_redrob_candidate
-            from src.parsers.jd import parse_jd_with_llm
+            from src.parsers.jd import _keyword_fallback
             from src.embedder import get_embedder
             from src.index import build_index, query_index
             from src.ranker import RankingEngine
-            from src.config import (
-                ANTHROPIC_API_KEY, EMBED_BATCH_SIZE, GEMINI_API_KEY, TOP_K_RETRIEVE,
-            )
+            from src.config import EMBED_BATCH_SIZE, TOP_K_RETRIEVE
             import faiss
 
             SAMPLE_INDEX_DIR = Path(__file__).resolve().parent.parent / "sample_index"
 
-            _llm_on = bool(ANTHROPIC_API_KEY or GEMINI_API_KEY)
-            st.write(
-                "Parsing JD with LLM (adapts to this JD)..." if _llm_on
-                else "Parsing JD (keyword fallback — no LLM key set)..."
-            )
-            parsed_jd = parse_jd_with_llm(jd_text)  # LLM if key set, else keyword fallback
+            st.write("Parsing JD (keyword extraction — no LLM, no network)...")
+            parsed_jd = _keyword_fallback(jd_text)  # JD-aware, no LLM (rank-time safe)
             embedder = get_embedder()
 
             if uploaded is not None:
