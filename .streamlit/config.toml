@@ -17,3 +17,15 @@ enableCORS = false
 # torch.classes raised...") on every script run. No files change at runtime in
 # the deployed image, so hot-reload watching isn't needed.
 fileWatcherType = "none"
+
+# Light, polished palette. primaryColor (blue->indigo accent) styles native
+# widgets (primary button, focus rings, dataframe progress columns) so they match
+# the custom CSS injected in demo_app.py. Mirrors the HF Space card gradient
+# (colorFrom: blue / colorTo: indigo).
+[theme]
+base = "light"
+primaryColor = "#4f46e5"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f5f7fb"
+textColor = "#1e293b"
+font = "sans serif"
