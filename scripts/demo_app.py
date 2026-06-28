@@ -151,7 +151,7 @@ html, body, [class*="css"], .stApp { font-family: 'Instrument Sans', system-ui, 
 
 /* tidy chrome + a centered, comfortable column (matches the results component) */
 #MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stHeader"] { visibility: hidden; height: 0; }
-.block-container { max-width: 1320px; padding-top: 2.4rem; padding-bottom: 4rem; padding-left: 2rem; padding-right: 2rem; }
+.block-container { max-width: 100%; padding-top: 2.4rem; padding-bottom: 4rem; padding-left: 3rem; padding-right: 3rem; }
 
 /* top bar — mirrors the results component header */
 .rrx-top { display: flex; align-items: center; gap: 13px; padding: 0 4px 16px; }
