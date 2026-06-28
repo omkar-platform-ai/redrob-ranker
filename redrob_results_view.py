@@ -1,0 +1,341 @@
+"""Redesigned results view for the Redrob Ranker sandbox.
+
+DROP-IN — replaces the evidence-ledger / honeypot / JD-keyword render block in
+``scripts/demo_app.py``. It is PURE PRESENTATION: it reads only fields that the
+ranking engine already put on each ``ScoredCandidate`` (the five sub-scores, the
+composite ``score``, ``rank``, ``reasoning``, ``matched_skills``,
+``hidden_gem_reasons``, ``is_honeypot``, title/company/yoe/location/notice) plus
+the honeypot-reason strings you already re-derive demo-side.
+
+It calls NOTHING in ``src/``. No scoring, no embedding, no LLM, no network. The
+master/detail interaction runs client-side inside a single
+``streamlit.components.v1.html`` iframe, so selecting a candidate never triggers a
+Streamlit rerun.
+
+Wire-up in scripts/demo_app.py — replace the whole "Results: the evidence ledger"
+block (everything under ``else:`` after ``results = st.session_state.get(...)``)
+with:
+
+    from pathlib import Path
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from redrob_results_view import render_results_view
+
+    render_results_view(
+        ranked=results["ranked"],
+        parsed_jd=results["parsed_jd"],
+        names=results["names"],
+        honeypots=results["honeypots"],   # list of {id,name,title,company,reasons}
+        csv_data=results["csv"],
+    )
+
+Nothing above that block (hero, input card, pipeline, session_state) changes.
+"""
+
+from __future__ import annotations
+
+import json
+import streamlit.components.v1 as components
+
+# Mirrors src/config.WEIGHTS — kept as a literal so this render layer imports
+# nothing from src/. (label, color, weight) in fusion-weight order.
+_SIGNALS = [
+    ("semantic",   "Semantic",   "#6366f1", 0.40),
+    ("role_fit",   "Role-fit",   "#0ea5e9", 0.20),
+    ("skill",      "Skill",      "#10b981", 0.15),
+    ("behavioral", "Behavioral", "#f59e0b", 0.15),
+    ("career",     "Career",     "#8b5cf6", 0.10),
+]
+
+_GEM_LABELS = {"open_source": "Open-source contributor", "multi_promotion": "2+ promotions"}
+
+
+def _humanize_gem(reason: str) -> str:
+    return _GEM_LABELS.get(reason, reason.replace("_", " "))
+
+
+def _g(sc, attr, default=0.0):
+    return getattr(sc, attr, default)
+
+
+def _candidate_payload(sc, names: dict) -> dict:
+    """Flatten one ScoredCandidate into the JSON the client renderer consumes."""
+    gems = list(_g(sc, "hidden_gem_reasons", []) or [])
+    try:
+        yoe = float(_g(sc, "years_of_experience", 0) or 0)
+    except (TypeError, ValueError):
+        yoe = 0.0
+    return {
+        "id": sc.candidate_id,
+        "name": names.get(sc.candidate_id, sc.candidate_id),
+        "title": _g(sc, "current_title", "") or "—",
+        "company": _g(sc, "current_company", "") or "",
+        "yoe": round(yoe, 1),
+        "loc": _g(sc, "location", "") or "",
+        "notice": _g(sc, "notice_period_days", None),
+        "flagged": bool(_g(sc, "is_honeypot", False)),
+        "score": float(_g(sc, "score", 0.0) or 0.0),
+        "rank": int(_g(sc, "rank", 0) or 0),
+        "s": {
+            "semantic":   float(_g(sc, "semantic_score", 0.0) or 0.0),
+            "role_fit":   float(_g(sc, "role_fit_score", 0.0) or 0.0),
+            "skill":      float(_g(sc, "skill_score", 0.0) or 0.0),
+            "behavioral": float(_g(sc, "behavioral_score", 0.0) or 0.0),
+            "career":     float(_g(sc, "career_score", 0.0) or 0.0),
+        },
+        "skills": list(_g(sc, "matched_skills", []) or []),
+        "gem": _humanize_gem(gems[0]) if gems else None,
+        "why": _g(sc, "reasoning", "") or "",
+    }
+
+
+def render_results_view(ranked, parsed_jd, names, honeypots, csv_data, *, height: int = 880) -> None:
+    """Render the redesigned results screen as a self-contained component."""
+    cands = [_candidate_payload(sc, names) for sc in ranked]
+    hp_reasons = {hp["id"]: hp.get("reasons", []) for hp in (honeypots or [])}
+
+    jd = {
+        "role": getattr(parsed_jd, "title", "") or "Role",
+        "seniority": (getattr(parsed_jd, "seniority_level", "") or "").title() or "—",
+        "band": "{}\u2013{} yrs".format(
+            getattr(parsed_jd, "min_experience_years", "?"),
+            getattr(parsed_jd, "max_experience_years", "?"),
+        ),
+        "required": list(getattr(parsed_jd, "required_skills", []) or [])[:8],
+        "flags": list(getattr(parsed_jd, "disqualifiers", []) or [])[:8],
+    }
+
+    payload = {"cands": cands, "honeypotReasons": hp_reasons, "jd": jd, "csv": csv_data or ""}
+    payload_json = json.dumps(payload).replace("</", "<\\/")
+    html = _TEMPLATE.replace("__PAYLOAD__", payload_json)
+    components.html(html, height=height, scrolling=False)
+
+
+_TEMPLATE = r"""
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:'Instrument Sans',system-ui,sans-serif;color:#0f172a;-webkit-font-smoothing:antialiased;background:#f6f7f9}
+  .mono{font-family:'JetBrains Mono',monospace}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:#cfd4de;border-radius:9px;border:2px solid transparent;background-clip:padding-box}
+  .app{height:100vh;display:flex;flex-direction:column;overflow:hidden;background:#f6f7f9}
+  .topbar{flex:0 0 auto;display:flex;align-items:center;gap:18px;padding:0 22px;height:58px;background:#fff;border-bottom:1px solid #e7e9ef}
+  .logo{width:11px;height:11px;border-radius:3px;background:#4f46e5;transform:rotate(45deg)}
+  .pill{font-size:11px;font-weight:600;color:#6b7280;background:#f1f2f6;padding:3px 9px;border-radius:6px;letter-spacing:.02em}
+  .vr{width:1px;height:22px;background:#e7e9ef}
+  .btn{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border:1px solid #4f46e5;background:#4f46e5;color:#fff;font-family:inherit;font-size:13px;font-weight:600;border-radius:8px;cursor:pointer}
+  .btn:hover{background:#4338ca;border-color:#4338ca}
+  .controls{flex:0 0 auto;display:flex;align-items:center;gap:16px;padding:9px 22px;background:#fbfbfc;border-bottom:1px solid #eceef3}
+  .ghost{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;border:1px solid #e2e4ec;background:#fff;color:#475569;font-family:inherit;font-size:12px;font-weight:600;border-radius:7px;cursor:pointer}
+  .ghost:hover{border-color:#cfd3df}
+  .seg{display:inline-flex;background:#eef0f4;border-radius:8px;padding:2px}
+  .seg button{height:26px;padding:0 11px;border:none;background:transparent;color:#64748b;font-family:inherit;font-size:12px;font-weight:600;border-radius:6px;cursor:pointer}
+  .seg button.on{background:#fff;color:#4f46e5;box-shadow:0 1px 2px rgba(15,23,42,.12)}
+  .lbl{font-size:11px;font-weight:600;color:#9aa1ad;letter-spacing:.03em}
+  .jdpanel{flex:0 0 auto;padding:14px 22px;background:#f3f1fb;border-bottom:1px solid #e6e2f6;display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start}
+  .jdk{font-size:10px;font-weight:700;color:#8b80c4;letter-spacing:.06em}
+  .chip{font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px}
+  .chip-req{background:#fff;color:#4338ca;border:1px solid #ddd6fb}
+  .chip-flag{background:#fdeef0;color:#a8324b;border:1px solid #f6d6dd}
+  .main{flex:1;display:flex;min-height:0}
+  .rail{flex:0 0 396px;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e7e9ef;min-height:0}
+  .tabs{flex:0 0 auto;display:flex;gap:4px;padding:12px 14px 0}
+  .tabs button{flex:1;height:34px;border:none;background:#f7f8fa;color:#94a3b8;font-family:inherit;font-size:13px;font-weight:600;border-radius:8px 8px 0 0;cursor:pointer;border-bottom:2px solid transparent}
+  .tabs button.on{background:#fff;color:#0f172a;border-bottom-color:#4f46e5}
+  .tabs button.on.flag{color:#b42318;border-bottom-color:#b42318}
+  .list{flex:1;overflow-y:auto;padding:6px 10px 16px}
+  .row{display:flex;gap:11px;align-items:center;padding:11px 10px;margin-top:4px;border-radius:10px;cursor:pointer;background:#fff;border:1px solid transparent}
+  .row:hover{background:#f7f8fa}
+  .row.sel{background:#f1f0fc;border-color:#d7d3f7}
+  .row.compact{padding:8px 9px}
+  .rk{flex:0 0 auto;width:26px;text-align:center;font-size:13px;font-weight:700;color:#cbd5e1}
+  .rk.top{color:#4f46e5}
+  .rname{font-size:14px;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rsub{font-size:12px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mini{display:flex;height:5px;margin-top:7px;background:#eef0f5;border-radius:999px;overflow:hidden}
+  .gemdot{width:6px;height:6px;border-radius:999px;background:#d4a017;display:inline-block}
+  .badge{font-size:16px;font-weight:700;line-height:1}
+  .badge-l{font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+  .detail{flex:1;overflow-y:auto;min-width:0}
+  .dwrap{max-width:760px;margin:0 auto;padding:30px 38px 80px}
+  .dwrap.compact{padding:20px 30px 60px}
+  .dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+  .dname{font-size:23px;font-weight:700;letter-spacing:-.02em}
+  .gembig{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#8a5a06;background:#fdf3da;border:1px solid #f0dca0;padding:3px 9px;border-radius:999px}
+  .dmeta{font-size:13px;color:#64748b;margin-top:6px}
+  .score-big{font-size:40px;font-weight:700;line-height:.9}
+  .sect-t{font-size:13px;font-weight:700;letter-spacing:-.01em}
+  .barbig{display:flex;height:30px;margin-top:11px;background:#f0f1f5;border-radius:9px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(15,23,42,.04)}
+  .brow{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #f1f2f6}
+  .brow.compact{padding:6px 0}
+  .bdot{width:10px;height:10px;border-radius:3px}
+  .corro{margin-top:22px;display:flex;align-items:center;gap:14px;padding:13px 16px;background:#f7f8fa;border:1px solid #ecedf2;border-radius:11px}
+  .cdot{width:12px;height:12px;border-radius:999px}
+  .kicker{font-size:12px;font-weight:700;color:#6b7280;letter-spacing:.02em}
+  .sk{font-size:12px;font-weight:500;background:#ecfdf3;color:#15803d;border:1px solid #cdeed8;padding:4px 10px;border-radius:999px}
+  .why{font-size:14px;line-height:1.6;color:#334155;margin-top:8px;text-wrap:pretty}
+  .hp{margin-top:22px;background:#fdf1f2;border:1px solid #f6d2d8;border-radius:12px;padding:16px 18px}
+  .micro{font-size:11px;color:#b0b6c0}
+</style></head>
+<body><div class="app" id="app"></div>
+<script>
+var D = __PAYLOAD__;
+var SIG = [["semantic","Semantic","#6366f1",.40],["role_fit","Role-fit","#0ea5e9",.20],["skill","Skill","#10b981",.15],["behavioral","Behavioral","#f59e0b",.15],["career","Career","#8b5cf6",.10]];
+var ranked = D.cands.filter(function(c){return !c.flagged;});
+var flagged = D.cands.filter(function(c){return c.flagged;});
+var st = { sel:(ranked[0]||D.cands[0]||{}).id, mode:"fit", density:"comfortable", tab:"ranked", jd:false };
+
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function tier(c){ if(c.flagged) return {l:"Zeroed",col:"#b42318"}; var f=c.score*100; if(f>=70)return{l:"Strong fit",col:"#4f46e5"}; if(f>=50)return{l:"Possible",col:"#b45309"}; return{l:"Weak fit",col:"#64748b"}; }
+function grade(c){ var f=c.score*100; return f>=75?"A":f>=65?"B":f>=55?"C":f>=45?"D":"E"; }
+function badge(c){ if(c.flagged) return st.mode==="raw"?"0.000":st.mode==="grade"?"\u2014":"0"; if(st.mode==="raw")return c.score.toFixed(2); if(st.mode==="grade")return grade(c); return ""+Math.round(c.score*100); }
+function segs(c){ return SIG.map(function(s){ var sub=(c.s[s[0]]||0), contrib=sub*s[3]; return {key:s[0],label:s[1],color:s[2],weight:s[3],sub:sub,contrib:contrib,widthPct:(contrib*100).toFixed(2),subPct:(sub*100).toFixed(1)}; }); }
+function fusion(c){ return SIG.reduce(function(a,s){return a+(c.s[s[0]]||0)*s[3];},0); }
+function corro(c){ var dots=SIG.map(function(s){return (c.s[s[0]]||0)>=0.5;}); var n=dots.filter(Boolean).length; var lab=n>=4?"Strong corroboration":n===3?"Moderate corroboration":"Mixed signals"; var col=n>=4?"#15803d":n===3?"#b45309":"#64748b"; return {dots:dots,n:n,lab:lab,col:col}; }
+function miniBar(c){ return '<div class="mini">'+segs(c).map(function(s){return '<div style="width:'+s.widthPct+'%;background:'+s.color+'"></div>';}).join("")+'</div>'; }
+
+function rowHTML(c){
+  var t=tier(c), dense=st.density==="compact";
+  return '<div class="row'+(c.id===st.sel?" sel":"")+(dense?" compact":"")+'" data-id="'+c.id+'">'
+    +'<div class="rk mono'+(c.rank<=3?" top":"")+'">#'+c.rank+'</div>'
+    +'<div style="flex:1;min-width:0">'
+      +'<div style="display:flex;align-items:baseline;gap:6px"><span class="rname">'+esc(c.name)+'</span>'+(c.gem?'<span class="gemdot" title="Hidden gem"></span>':'')+'</div>'
+      +'<div class="rsub">'+esc(c.title)+(c.company?" \u00b7 "+esc(c.company):"")+'</div>'
+      +miniBar(c)
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">'
+      +'<span class="badge mono" style="color:'+t.col+'">'+badge(c)+'</span>'
+      +'<span class="badge-l" style="color:'+t.col+'">'+t.l+'</span>'
+    +'</div></div>';
+}
+
+function detailHTML(c){
+  if(!c) return "";
+  var t=tier(c), dense=st.density==="compact";
+  var fit=Math.round(c.score*100), g=c.flagged?"\u2014":grade(c);
+  var big,sub;
+  if(c.flagged){ big="0"; sub="0.0000 composite"; }
+  else if(st.mode==="raw"){ big=c.score.toFixed(3); sub=fit+" / 100 fit"; }
+  else if(st.mode==="grade"){ big=g; sub=fit+" \u00b7 "+c.score.toFixed(3); }
+  else { big=""+fit; sub=c.score.toFixed(4)+" composite"; }
+
+  var meta=esc(c.title)+" @ "+esc(c.company)+"  \u00b7  "+c.yoe+"yr  \u00b7  "+esc(c.loc)+(c.notice!=null?"  \u00b7  "+c.notice+"d notice":"");
+  var h='<div class="dwrap'+(dense?" compact":"")+'">';
+
+  h+='<div class="dhead"><div style="min-width:0">'
+    +'<div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:13px;font-weight:700;color:#c7ccd6">#'+c.rank+'</span><span class="dname">'+esc(c.name)+'</span>'
+    +(c.gem?'<span class="gembig">\u25c6 '+esc(c.gem)+'</span>':'')+'</div>'
+    +'<div class="dmeta mono">'+meta+'</div></div>'
+    +'<div style="text-align:right;flex:0 0 auto"><div class="score-big mono" style="color:'+t.col+'">'+big+'</div>'
+    +'<div style="font-size:12px;font-weight:600;color:'+t.col+';margin-top:5px;text-transform:uppercase;letter-spacing:.04em">'+t.l+'</div>'
+    +'<div class="micro mono" style="margin-top:3px">'+sub+'</div></div></div>';
+
+  if(c.flagged){
+    var reasons=(D.honeypotReasons[c.id]||[]);
+    h+='<div class="hp"><div style="font-size:13px;font-weight:700;color:#b42318">\u26d3 Honeypot \u2014 composite forced to 0</div>'
+      +'<div style="font-size:13px;color:#9b3b3b;margin-top:6px;line-height:1.5">Tripped 2+ impossible-profile signals, so it can\'t game the ranking. Over the full 100K pool it falls below the top-100 cutoff entirely.</div>'
+      +'<div style="display:flex;flex-direction:column;gap:7px;margin-top:13px">'
+      +reasons.map(function(r){return '<div style="display:flex;gap:9px;align-items:flex-start;font-size:13px;color:#7f1d1d"><span class="mono" style="color:#d97179;margin-top:1px">\u2715</span><span>'+esc(r)+'</span></div>';}).join("")
+      +'</div></div>';
+  } else {
+    var S=segs(c), fus=fusion(c), adj=c.score-fus;
+    h+='<div style="margin-top:26px"><div style="display:flex;align-items:baseline;justify-content:space-between"><span class="sect-t">Score composition</span><span class="micro">segment width = signal \u00d7 weight \u00b7 full track = 1.00</span></div>';
+    h+='<div class="barbig">'+S.map(function(s){return '<div style="width:'+s.widthPct+'%;background:'+s.color+'" title="'+s.label+': '+s.contrib.toFixed(3)+'  ('+s.sub.toFixed(2)+' \u00d7 '+s.weight.toFixed(2)+')"></div>';}).join("")+'</div>';
+    h+='<div style="margin-top:16px">';
+    h+=S.map(function(s){
+      return '<div class="brow'+(dense?" compact":"")+'">'
+        +'<div style="flex:0 0 132px;display:flex;align-items:center;gap:9px"><span class="bdot" style="background:'+s.color+'"></span><span style="font-size:13px;font-weight:600;color:#1e293b">'+s.label+'</span><span class="mono" style="font-size:10px;font-weight:700;color:#94a3b8">'+Math.round(s.weight*100)+'%</span></div>'
+        +'<div style="flex:1;height:7px;background:#eef0f5;border-radius:999px;overflow:hidden"><div style="height:100%;width:'+s.subPct+'%;background:'+s.color+';opacity:.92"></div></div>'
+        +'<div class="mono" style="flex:0 0 48px;text-align:right;font-size:13px;font-weight:600;color:#334155">'+s.sub.toFixed(2)+'</div>'
+        +'<div class="mono" style="flex:0 0 66px;text-align:right;font-size:12px;color:#94a3b8">+'+s.contrib.toFixed(3)+'</div></div>';
+    }).join("");
+    if(Math.abs(adj)>0.005){
+      h+='<div class="brow"><div style="flex:0 0 132px;font-size:13px;font-weight:600;color:#a8516b">Multipliers</div>'
+        +'<div style="flex:1;font-size:12px;color:#94a3b8">role-fit / location / career caps</div>'
+        +'<div style="flex:0 0 48px"></div>'
+        +'<div class="mono" style="flex:0 0 66px;text-align:right;font-size:12px;color:'+(adj<0?"#b42318":"#15803d")+'">'+(adj<0?"":"+")+adj.toFixed(3)+'</div></div>';
+    }
+    h+='<div style="display:flex;align-items:center;gap:12px;padding:9px 0 0"><div style="flex:0 0 132px;font-size:13px;font-weight:700">Composite</div><div style="flex:1"></div><div style="flex:0 0 48px"></div><div class="mono" style="flex:0 0 66px;text-align:right;font-size:13px;font-weight:700">'+c.score.toFixed(4)+'</div></div></div></div>';
+
+    var cr=corro(c);
+    h+='<div class="corro"><div style="display:flex;gap:5px">'+cr.dots.map(function(on){return '<span class="cdot" style="background:'+(on?cr.col:"#d6dae2")+'"></span>';}).join("")+'</div>'
+      +'<div><span style="font-size:13px;font-weight:700;color:'+cr.col+'">'+cr.lab+'</span><span style="font-size:13px;color:#64748b"> \u2014 '+cr.n+' of 5 signals above 0.50</span></div></div>';
+
+    if(c.skills&&c.skills.length){
+      h+='<div style="margin-top:22px"><span class="kicker">MATCHED SKILLS</span><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px">'
+        +c.skills.map(function(s){return '<span class="sk">'+esc(s)+'</span>';}).join("")+'</div></div>';
+    }
+  }
+
+  h+='<div style="margin-top:22px"><span class="kicker">WHY THIS RANK</span><p class="why">'+esc(c.why||"Disqualified \u2014 flagged as a honeypot and forced to score 0.")+'</p>'
+    +'<div class="micro" style="margin-top:10px">Template-generated \u00b7 no LLM at rank time \u00b7 non-hallucinated from profile fields</div></div>';
+  h+='</div>';
+  return h;
+}
+
+function topFit(){ var c=ranked[0]; if(!c) return "\u2014"; return st.mode==="raw"?c.score.toFixed(2):st.mode==="grade"?grade(c):""+Math.round(c.score*100); }
+
+function render(){
+  var list = st.tab==="ranked"?ranked:flagged;
+  if(!list.some(function(c){return c.id===st.sel;})) st.sel=(list[0]||{}).id;
+  var selC = D.cands.filter(function(c){return c.id===st.sel;})[0]||ranked[0];
+  var jd=D.jd;
+
+  var html='';
+  html+='<div class="topbar"><div style="display:flex;align-items:center;gap:10px"><div class="logo"></div><div style="font-weight:700;font-size:15px;letter-spacing:-.01em">Redrob Ranker</div><div class="pill">EVIDENCE LEDGER</div></div>'
+    +'<div class="vr"></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1"><span style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(jd.role)+'</span><span class="mono" style="font-size:12px;color:#9ca3af;white-space:nowrap">'+esc(jd.band)+'</span></div>'
+    +'<div style="display:flex;align-items:center;gap:14px;flex:0 0 auto"><div class="mono" style="display:flex;gap:16px;font-size:12px;color:#6b7280">'
+      +'<span><b style="color:#111827">'+ranked.length+'</b> ranked</span><span><b style="color:#b42318">'+flagged.length+'</b> zeroed</span><span>top <b style="color:#4f46e5">'+topFit()+'</b></span></div>'
+    +'<button class="btn" data-act="csv"><span class="mono" style="font-size:14px">\u2193</span> CSV</button></div></div>';
+
+  html+='<div class="controls"><button class="ghost" data-act="jd"><span style="color:#94a3b8">'+(st.jd?"\u25be":"\u25b8")+'</span> What the engine understood</button><div style="flex:1"></div>'
+    +'<div style="display:flex;align-items:center;gap:7px"><span class="lbl">SCORE</span><div class="seg">'
+      +'<button data-mode="fit" class="'+(st.mode==="fit"?"on":"")+'">Fit /100</button>'
+      +'<button data-mode="raw" class="mono '+(st.mode==="raw"?"on":"")+'">0\u20131</button>'
+      +'<button data-mode="grade" class="'+(st.mode==="grade"?"on":"")+'">Grade</button></div></div>'
+    +'<div style="display:flex;align-items:center;gap:7px"><span class="lbl">DENSITY</span><div class="seg">'
+      +'<button data-dens="comfortable" class="'+(st.density==="comfortable"?"on":"")+'">Comfortable</button>'
+      +'<button data-dens="compact" class="'+(st.density==="compact"?"on":"")+'">Compact</button></div></div></div>';
+
+  if(st.jd){
+    html+='<div class="jdpanel">'
+      +'<div style="display:flex;flex-direction:column;gap:2px"><span class="jdk">ROLE</span><span style="font-size:13px;font-weight:600">'+esc(jd.role)+'</span></div>'
+      +'<div style="display:flex;flex-direction:column;gap:2px"><span class="jdk">SENIORITY</span><span style="font-size:13px;font-weight:600">'+esc(jd.seniority)+'</span></div>'
+      +'<div style="display:flex;flex-direction:column;gap:2px"><span class="jdk">EXPERIENCE</span><span class="mono" style="font-size:13px;font-weight:600">'+esc(jd.band)+'</span></div>'
+      +'<div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:5px"><span class="jdk">REQUIRED \u2014 KEYWORD EXTRACTION, NO LLM</span><div style="display:flex;flex-wrap:wrap;gap:5px">'+(jd.required||[]).map(function(k){return '<span class="chip chip-req">'+esc(k)+'</span>';}).join("")+'</div></div>'
+      +(jd.flags&&jd.flags.length?'<div style="display:flex;flex-direction:column;gap:5px"><span class="jdk" style="color:#a8516b">JD-SPECIFIC FLAGS</span><div style="display:flex;flex-wrap:wrap;gap:5px;max-width:280px">'+jd.flags.map(function(f){return '<span class="chip chip-flag">'+esc(f)+'</span>';}).join("")+'</div></div>':'')
+      +'</div>';
+  }
+
+  html+='<div class="main"><div class="rail"><div class="tabs">'
+    +'<button class="'+(st.tab==="ranked"?"on":"")+'" data-tab="ranked">Ranked \u00b7 '+ranked.length+'</button>'
+    +'<button class="'+(st.tab==="flagged"?"on flag":"")+'" data-tab="flagged">Honeypots \u00b7 '+flagged.length+'</button></div>'
+    +'<div class="list">'+list.map(rowHTML).join("")+'</div></div>'
+    +'<div class="detail">'+detailHTML(selC)+'</div></div>';
+
+  document.getElementById("app").innerHTML=html;
+}
+
+document.getElementById("app").addEventListener("click",function(e){
+  var el=e.target.closest("[data-id],[data-act],[data-mode],[data-dens],[data-tab]"); if(!el) return;
+  if(el.dataset.id){ st.sel=el.dataset.id; render(); }
+  else if(el.dataset.act==="csv"){ var b=new Blob([D.csv],{type:"text/csv"}); var a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="submission.csv"; document.body.appendChild(a); a.click(); a.remove(); }
+  else if(el.dataset.act==="jd"){ st.jd=!st.jd; render(); }
+  else if(el.dataset.mode){ st.mode=el.dataset.mode; render(); }
+  else if(el.dataset.dens){ st.density=el.dataset.dens; render(); }
+  else if(el.dataset.tab){ st.tab=el.dataset.tab; render(); }
+});
+window.addEventListener("keydown",function(e){
+  if(e.key!=="ArrowDown"&&e.key!=="ArrowUp") return;
+  var list=st.tab==="ranked"?ranked:flagged; var i=list.findIndex(function(c){return c.id===st.sel;}); if(i<0) return;
+  e.preventDefault(); st.sel=list[e.key==="ArrowDown"?Math.min(list.length-1,i+1):Math.max(0,i-1)].id; render();
+});
+render();
+</script></body></html>
+"""

@@ -29,6 +29,9 @@ COPY data/sample_candidates.json ./data/
 # Streamlit demo app + config (XSRF off: HF proxy breaks the upload-cookie flow)
 COPY scripts/demo_app.py ./scripts/demo_app.py
 COPY scripts/build_sample_index.py ./scripts/build_sample_index.py
+# Redesigned results view — demo_app.py imports it via a repo-root sys.path insert
+# (and PYTHONPATH=/app), so it must sit at the image root (/app), not under scripts/.
+COPY redrob_results_view.py ./redrob_results_view.py
 COPY .streamlit ./.streamlit
 
 # Pre-build the sample-candidate FAISS index at image-build time so the live

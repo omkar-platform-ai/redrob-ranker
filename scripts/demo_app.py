@@ -1,10 +1,20 @@
-"""Streamlit sandbox demo — accepts ≤100 candidates, runs full ranking pipeline."""
+"""Streamlit sandbox demo — accepts ≤100 candidates, runs full ranking pipeline.
+
+Results are rendered by ``redrob_results_view.render_results_view`` (a self-
+contained client-side component). The ranking pipeline below is unchanged.
+"""
 
 import html
 import json
+import sys
 from pathlib import Path
 
 import streamlit as st
+
+# Make the repo root importable so the results view (repo-root module) resolves
+# whether the app is launched from the repo root or from scripts/.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from redrob_results_view import render_results_view
 
 
 def _load_candidates(raw: str) -> list[dict]:
@@ -103,268 +113,8 @@ def _badges(items: list[str], color: str) -> str:
     )
 
 
-def _render_jd_keywords(parsed_jd) -> None:
-    """Show the keyword extraction (no LLM) on screen, grouped by category.
-
-    Surfaces what the engine pulled from the pasted JD, so it's clear the role was
-    understood. Pure display of the existing `ParsedJD` fields — no scoring side
-    effects.
-    """
-    st.caption("Keyword extraction — no LLM, no network (rank-time safe)")
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Role", parsed_jd.title)
-    col2.metric("Seniority", parsed_jd.seniority_level.title())
-    col3.metric(
-        "Experience",
-        f"{parsed_jd.min_experience_years}–{parsed_jd.max_experience_years} yrs",
-    )
-    st.markdown(f"**Domain:** {parsed_jd.domain}")
-    st.markdown(
-        f"**Required skills:** {_badges(parsed_jd.required_skills, 'blue')}",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        f"**Nice-to-have skills:** {_badges(parsed_jd.nice_to_have_skills, 'green')}",
-        unsafe_allow_html=True,
-    )
-    if parsed_jd.disqualifiers:
-        # "JD-specific flags" not "Disqualifiers": the detectors are intentionally
-        # narrow/JD-tuned, so this label reads more honestly than a hard verdict.
-        st.markdown(
-            f"**JD-specific flags:** {_badges(parsed_jd.disqualifiers, 'red')}",
-            unsafe_allow_html=True,
-        )
-
-
-# ── Evidence-ledger config ──────────────────────────────────────────────────────
-# The five fusion signals, in weight order. Weights MIRROR src/config.WEIGHTS
-# (kept as a literal so this render layer needs no rank-time import). Each ledger
-# row draws a stacked bar whose segment widths = sub_score × weight, so the bar
-# literally shows how the composite was built — our explainability angle.
-_SIGNAL_META = [
-    ("semantic_score",   "Semantic",   "#6366f1", 0.40),
-    ("role_fit_score",   "Role-fit",   "#0ea5e9", 0.20),
-    ("skill_score",      "Skill",      "#10b981", 0.15),
-    ("behavioral_score", "Behavioral", "#f59e0b", 0.15),
-    ("career_score",     "Career",     "#8b5cf6", 0.10),
-]
-
-_LEDGER_ROWS = 12    # rich ledger cards (full ranking lives in the table + CSV)
-
-
-# All visual styling for the custom components lives here. Injected once after
-# set_page_config. The Inter @import is browser-side (this is a public web page);
-# the system-ui fallback keeps it readable if the font can't load.
-_CSS = """
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
-html, body, [class*="css"], .stApp { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
-
-/* tidy chrome + a centered, comfortable column */
-#MainMenu, footer, [data-testid="stToolbar"] { visibility: hidden; height: 0; }
-.block-container { max-width: 960px; padding-top: 2.0rem; padding-bottom: 4rem; }
-
-/* hero */
-.rr-hero {
-  background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 50%, #eff6ff 100%);
-  border: 1px solid #e5e7f5; border-radius: 18px; padding: 24px 30px; margin-bottom: 18px;
-  box-shadow: 0 1px 3px rgba(15,23,42,0.04);
-}
-.rr-hero__badge {
-  display: inline-block; background: #fff; border: 1px solid #e2e4f0; color: #4f46e5;
-  font-weight: 600; font-size: 0.76rem; letter-spacing: .03em;
-  padding: 5px 12px; border-radius: 999px; margin-bottom: 12px;
-}
-.rr-hero__title { font-size: 2.0rem; font-weight: 800; color: #0f172a; line-height: 1.15; margin: 0; letter-spacing: -0.02em; }
-.rr-hero__tag { font-size: 0.94rem; color: #64748b; margin-top: 8px; }
-.rr-pills { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
-.rr-pill {
-  display: inline-block; background: rgba(255,255,255,0.75); border: 1px solid #e2e4f0; color: #475569;
-  font-weight: 600; font-size: 0.78rem; padding: 5px 12px; border-radius: 999px;
-}
-.rr-pill--accent { color: #4f46e5; border-color: #d7dbfb; background: #eef2ff; }
-
-/* section + helpers */
-.rr-section { font-size: 1.0rem; font-weight: 700; color: #0f172a; margin: 6px 0 6px; letter-spacing: -0.01em; }
-.rr-subtle { color: #94a3b8; font-weight: 500; }
-.rr-hint { color: #94a3b8; font-size: 0.9rem; text-align: center; margin: 22px 0; }
-
-/* chips */
-.rr-chip {
-  display: inline-block; padding: 3px 11px; border-radius: 999px; margin: 3px 5px 3px 0;
-  font-size: 0.82rem; font-weight: 500; white-space: nowrap; border: 1px solid transparent;
-}
-.rr-chip--blue  { background: #eef2ff; color: #3730a3; border-color: #dfe3fb; }
-.rr-chip--green { background: #ecfdf3; color: #1b7a32; border-color: #d6f5df; }
-.rr-chip--red   { background: #fef2f2; color: #b42318; border-color: #fbdcdc; }
-.rr-chip--gold  { background: #fef6e0; color: #92600a; border-color: #f3dc97; }
-
-/* scan recap */
-.rr-recap { font-size: 0.95rem; color: #334155; }
-.rr-recap b { color: #0f172a; }
-
-/* signal legend */
-.rr-legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 4px 0 14px; font-size: 0.78rem; color: #64748b; }
-.rr-legend__item { white-space: nowrap; }
-.rr-legend__dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
-
-/* ledger card head/body (the card border comes from st.container(border=True)) */
-.rr-led__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.rr-led__id { min-width: 0; }
-.rr-led__rank { font-weight: 800; color: #cbd5e1; font-size: 0.92rem; margin-right: 8px; }
-.rr-led__rank--top { color: #4f46e5; }
-.rr-led__name { font-weight: 700; color: #0f172a; font-size: 1.0rem; }
-.rr-gem { display: inline-block; margin-left: 8px; font-size: 0.66rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: #92600a; background: #fef6e0; border: 1px solid #f3dc97; padding: 2px 8px; border-radius: 999px; vertical-align: middle; white-space: nowrap; }
-.rr-led__score { font-weight: 800; color: #0f172a; font-size: 1.18rem; white-space: nowrap; letter-spacing: -0.01em; }
-.rr-led__score small { font-size: 0.6rem; color: #94a3b8; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-left: 4px; }
-.rr-led__meta { font-size: 0.8rem; color: #94a3b8; margin: 3px 0 0; }
-.rr-led__reason { font-size: 0.86rem; color: #475569; line-height: 1.5; margin-top: 8px; }
-
-/* the contribution bar — the signature visual */
-.rr-bar { display: flex; height: 12px; background: #eef0f6; border-radius: 999px; overflow: hidden; margin: 11px 0 2px; }
-.rr-seg { height: 100%; }
-.rr-seg:hover { filter: brightness(1.08); }
-
-/* honeypot card (inside the "Honeypots filtered" panel) */
-.rr-hp__head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.rr-hp__name { font-weight: 700; color: #0f172a; font-size: 0.96rem; }
-.rr-hp__zero { font-size: 0.7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #b42318; background: #fef2f2; border: 1px solid #fbdcdc; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
-.rr-hp__chips { margin-top: 8px; }
-
-/* button polish */
-.stButton > button, .stDownloadButton > button { border-radius: 10px; font-weight: 600; }
-</style>
-"""
-
-
-def _inject_css() -> None:
-    """Inject the custom stylesheet once (call right after set_page_config)."""
-    st.markdown(_CSS, unsafe_allow_html=True)
-
-
-# ── Ledger renderers (pure presentation of existing ScoredCandidate fields) ─────
-
-def _meta_line(sc) -> str:
-    """`title @ company · Xyr · location · Nd notice` — HTML-escaped."""
-    parts: list[str] = []
-    title = sc.current_title or "—"
-    company = sc.current_company or ""
-    parts.append(f"{title} @ {company}" if company else title)
-    try:
-        parts.append(f"{float(sc.years_of_experience):g}yr")
-    except (TypeError, ValueError):
-        pass
-    if sc.location:
-        parts.append(sc.location)
-    notice = getattr(sc, "notice_period_days", None)
-    if notice is not None:
-        parts.append(f"{int(notice)}d notice")
-    return html.escape(" · ".join(parts))
-
-
-def _render_legend() -> str:
-    """Color key for the contribution bar (signal → weight)."""
-    items = "".join(
-        f'<span class="rr-legend__item">'
-        f'<span class="rr-legend__dot" style="background:{color}"></span>'
-        f"{label} {int(weight * 100)}%</span>"
-        for _key, label, color, weight in _SIGNAL_META
-    )
-    return f'<div class="rr-legend">{items}</div>'
-
-
-def _contribution_bar(sc) -> str:
-    """Stacked bar: each segment width = sub_score × weight (scale 0–1 = full bar)."""
-    segs = []
-    for key, label, color, weight in _SIGNAL_META:
-        val = max(0.0, float(getattr(sc, key, 0.0) or 0.0))
-        contrib = val * weight
-        if contrib <= 0:
-            continue
-        segs.append(
-            f'<div class="rr-seg" style="width:{contrib * 100:.2f}%;background:{color}" '
-            f'title="{label}: {contrib:.3f}  ({val:.2f} × {weight:.2f})"></div>'
-        )
-    return f'<div class="rr-bar">{"".join(segs)}</div>'
-
-
-def _ledger_head_html(sc, name: str) -> str:
-    """Headline + meta + contribution bar + reasoning for one ledger card."""
-    rank_cls = " rr-led__rank--top" if sc.rank <= 3 else ""
-    gem = ' <span class="rr-gem">💎 Hidden gem</span>' if getattr(sc, "hidden_gem_reasons", None) else ""
-    return (
-        '<div class="rr-led__head">'
-        f'<div class="rr-led__id"><span class="rr-led__rank{rank_cls}">#{sc.rank}</span>'
-        f'<span class="rr-led__name">{html.escape(str(name))}</span>{gem}</div>'
-        f'<div class="rr-led__score">{float(sc.score or 0.0):.4f}<small>score</small></div>'
-        "</div>"
-        f'<div class="rr-led__meta">{_meta_line(sc)}</div>'
-        f"{_contribution_bar(sc)}"
-        f'<div class="rr-led__reason">{html.escape(sc.reasoning or "")}</div>'
-    )
-
-
-_CORROBORATION_BAR = 0.50  # neutral [0,1] midpoint — not a tuned threshold
-
-_GEM_LABELS = {"open_source": "Open-source contributor", "multi_promotion": "2+ promotions"}
-
-
-def _humanize_gem(reason: str) -> str:
-    """Turn a hidden-gem reason code into a readable phrase."""
-    return _GEM_LABELS.get(reason, reason.replace("_", " "))
-
-
-def _signal_corroboration(sc) -> tuple[int, str]:
-    """How many of the 5 independent signals clear the 0.50 midpoint.
-
-    A defensible, on-card-verifiable replacement for the opaque composite
-    'confidence' band: it measures agreement across signals, so it never
-    contradicts the rank.
-    """
-    n = sum(
-        1
-        for key, _label, _color, _w in _SIGNAL_META
-        if float(getattr(sc, key, 0.0) or 0.0) >= _CORROBORATION_BAR
-    )
-    label = (
-        "Strong corroboration" if n >= 4
-        else "Moderate corroboration" if n == 3
-        else "Mixed signals"
-    )
-    return n, label
-
-
-def _render_evidence(sc) -> None:
-    """Inside-the-expander drill-down: matched skills, hidden-gem signals, sub-scores."""
-    st.markdown(
-        f"**Matched skills:** {_badges(sc.matched_skills, 'green')}",
-        unsafe_allow_html=True,
-    )
-    if sc.hidden_gem_reasons:
-        gems = [_humanize_gem(r) for r in sc.hidden_gem_reasons]
-        st.markdown(
-            f"**💎 Hidden gem:** {_badges(gems, 'gold')}", unsafe_allow_html=True
-        )
-    if getattr(sc, "is_honeypot", False):
-        st.markdown("**Flag:** ⚠️ honeypot — composite forced to 0")
-    breakdown = " · ".join(
-        f"{label} {float(getattr(sc, key, 0.0) or 0.0):.2f}"
-        for key, label, _color, _w in _SIGNAL_META
-    )
-    st.markdown(f"**Signal scores:** {breakdown}")
-    if getattr(sc, "is_honeypot", False):
-        st.caption("Evidence: disqualified — flagged as honeypot")
-    else:
-        n, label = _signal_corroboration(sc)
-        st.caption(f"Evidence: {label} — {n} of 5 signals above {_CORROBORATION_BAR:.2f}")
-
-
-# ── Honeypot panel (anti-gaming evidence) ───────────────────────────────────────
-# Honeypots are forced to score 0 by RankingEngine, so they sink to the tail and
-# never reach the top-12 ledger. This panel surfaces WHY each was caught. The
-# detector returns machine-readable reason strings (e.g. "expert_no_time:LoRA");
+# ── Honeypot reason humaniser (used when building the results payload) ──────────
+# The detector returns machine-readable reason strings (e.g. "expert_no_time:LoRA");
 # we humanize them and re-derive them demo-side via HoneypotDetector().detect()
 # (read-only, rank-time-safe — no src/ change, no effect on the ranking).
 
@@ -389,30 +139,147 @@ def _humanize_honeypot_reason(reason: str) -> str:
     return reason.replace("_", " ")
 
 
-def _honeypot_card_html(hp: dict) -> str:
-    """One honeypot row: name + 'score 0' badge, title@company·id meta, red reason chips."""
-    title = hp.get("title") or "—"
-    company = hp.get("company") or ""
-    meta = f"{title} @ {company}" if company else title
-    meta = f"{meta} · {hp.get('id', '')}"
-    return (
-        '<div class="rr-hp__head">'
-        f'<span class="rr-hp__name">{html.escape(str(hp.get("name", "")))}</span>'
-        '<span class="rr-hp__zero">score 0 · excluded</span>'
-        "</div>"
-        f'<div class="rr-led__meta">{html.escape(meta)}</div>'
-        f'<div class="rr-hp__chips">{_badges(hp.get("reasons", []), "red")}</div>'
-    )
+# All visual styling for the hero + input card. Injected once after
+# set_page_config. The Inter @import is browser-side (this is a public web page);
+# the system-ui fallback keeps it readable if the font can't load.
+_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+html, body, [class*="css"], .stApp { font-family: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+.stApp { background: #f6f7f9; }
+
+/* tidy chrome + a centered, comfortable column (matches the results component) */
+#MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stHeader"] { visibility: hidden; height: 0; }
+.block-container { max-width: 980px; padding-top: 2.4rem; padding-bottom: 4rem; }
+
+/* top bar — mirrors the results component header */
+.rrx-top { display: flex; align-items: center; gap: 13px; padding: 0 4px 14px; }
+.rrx-logo { width: 12px; height: 12px; border-radius: 3px; background: #4f46e5; transform: rotate(45deg); display: inline-block; }
+.rrx-word { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; color: #0f172a; }
+.rrx-tagpill { font-size: 11px; font-weight: 600; color: #6b7280; background: #f1f2f6; padding: 3px 9px; border-radius: 6px; letter-spacing: 0.02em; }
+.rrx-spacer { flex: 1; }
+.rrx-mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #94a3b8; }
+
+/* hero — white card + hairline, same surface language as the ledger */
+.rr-hero { background: #fff; border: 1px solid #e7e9ef; border-radius: 16px; padding: 26px 30px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); position: relative; overflow: hidden; }
+.rr-hero:before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(#6366f1, #8b5cf6); }
+.rr-hero__badge { display: inline-block; font-family: 'JetBrains Mono', monospace; background: #f7f8fa; border: 1px solid #e7e9ef; color: #4f46e5; font-weight: 600; font-size: 0.7rem; letter-spacing: 0.02em; padding: 5px 11px; border-radius: 7px; margin-bottom: 14px; }
+.rr-hero__title { font-size: 2.0rem; font-weight: 700; color: #0f172a; line-height: 1.12; margin: 0; letter-spacing: -0.025em; }
+.rr-hero__tag { font-size: 0.95rem; color: #64748b; margin-top: 9px; max-width: 64ch; }
+.rr-pills { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 7px; }
+.rr-pill { display: inline-block; background: #f1f2f6; border: 1px solid #e7e9ef; color: #475569; font-weight: 600; font-size: 0.76rem; padding: 5px 11px; border-radius: 999px; }
+.rr-pill--accent { color: #4f46e5; border-color: #dcd9fb; background: #eef0fe; }
+
+/* section labels in the input card */
+.rr-section { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 4px 0 6px; letter-spacing: -0.01em; }
+.rr-section .rr-num { font-family: 'JetBrains Mono', monospace; color: #94a3b8; font-weight: 700; margin-right: 5px; }
+.rr-subtle { color: #94a3b8; font-weight: 500; }
+.rr-hint { color: #94a3b8; font-size: 0.9rem; text-align: center; margin: 22px 0; }
+
+/* chips (still used elsewhere) */
+.rr-chip { display: inline-block; padding: 3px 11px; border-radius: 999px; margin: 3px 5px 3px 0; font-size: 0.82rem; font-weight: 500; white-space: nowrap; border: 1px solid transparent; }
+.rr-chip--blue  { background: #eef2ff; color: #3730a3; border-color: #dfe3fb; }
+.rr-chip--green { background: #ecfdf3; color: #1b7a32; border-color: #d6f5df; }
+.rr-chip--red   { background: #fef2f2; color: #b42318; border-color: #fbdcdc; }
+.rr-chip--gold  { background: #fef6e0; color: #92600a; border-color: #f3dc97; }
+
+/* Streamlit widgets → component look */
+[data-testid="stVerticalBlockBorderWrapper"] { border-radius: 16px; border-color: #e7e9ef; background: #fff; }
+.stTextArea textarea { font-family: 'Instrument Sans', sans-serif; font-size: 14px; background: #f7f8fa; border: 1px solid #e7e9ef; border-radius: 10px; color: #0f172a; }
+.stTextArea textarea:focus { border-color: #c7c3f3; box-shadow: 0 0 0 3px rgba(79,70,229,0.12); }
+[data-testid="stFileUploaderDropzone"] { background: #f7f8fa; border: 1px dashed #d6dae2; border-radius: 12px; }
+.stButton > button, .stDownloadButton > button { border-radius: 10px; font-weight: 600; font-family: 'Instrument Sans', sans-serif; }
+.stButton > button[kind="secondary"] { background: #fff; border: 1px solid #e2e4ec; color: #475569; }
+.stButton > button[kind="secondary"]:hover { border-color: #cfd3df; color: #0f172a; }
+.stButton > button[kind="primary"] { background: #4f46e5; border-color: #4f46e5; }
+.stButton > button[kind="primary"]:hover { background: #4338ca; border-color: #4338ca; }
+[data-testid="stAlert"], [data-testid="stNotification"] { border-radius: 12px; font-family: 'Instrument Sans', sans-serif; }
+</style>
+"""
+
+
+def _inject_css() -> None:
+    """Inject the custom stylesheet once (call right after set_page_config)."""
+    st.markdown(_CSS, unsafe_allow_html=True)
+
+
+# ── Sample JD (powers the "Load sample JD" button) ─────────────────────────────
+# Loads the real data/job_description.txt when present (it ships in the image);
+# otherwise falls back to a condensed but faithful copy so the button always works.
+_SAMPLE_JD_PATH = Path(__file__).resolve().parent.parent / "data" / "job_description.txt"
+
+_SAMPLE_JD_FALLBACK = """\
+Job Description: Senior AI Engineer — Founding Team
+Company: Redrob AI (Series A AI-native talent intelligence platform)
+Location: Pune/Noida, India (Hybrid) | Open to relocation from Tier-1 Indian cities
+Experience Required: 5–9 years
+
+We're building a new AI Engineering org from scratch. We need someone with deep
+technical depth in modern ML systems — embeddings, retrieval, ranking, LLMs,
+fine-tuning — AND a scrappy product-engineering attitude who will ship a working
+ranker in a week and learn from real users.
+
+You'd own the intelligence layer: the ranking, retrieval, and matching systems
+behind candidate and role search. First 90 days: audit the current BM25 + rule
+stack, ship a v2 ranking system (embeddings, hybrid retrieval, LLM re-ranking),
+and stand up evaluation infrastructure (offline NDCG/MAP benchmarks, online A/B
+testing, recruiter-feedback loops).
+
+Things you absolutely need:
+- Production embeddings-based retrieval (sentence-transformers, BGE, E5, OpenAI) at real-user scale
+- Vector DB / hybrid search infra (Pinecone, Weaviate, Qdrant, Milvus, FAISS, Elasticsearch)
+- Strong Python and code quality
+- Designing evaluation frameworks for ranking (NDCG, MRR, MAP, offline-to-online correlation, A/B tests)
+
+Nice to have: LoRA/QLoRA/PEFT fine-tuning, learning-to-rank, HR-tech exposure,
+distributed systems, open-source AI/ML contributions.
+
+Explicit disqualifiers:
+- Pure-research-only careers with no production deployment
+- "AI experience" that is only recent (<12 months) LangChain-calls-OpenAI work
+- Senior engineers who haven't written production code in 18+ months
+- Title-chasers switching companies every ~1.5 years
+- Entirely consulting-firm careers (TCS, Infosys, Wipro, Accenture, Cognizant, Capgemini)
+- Primary expertise in computer vision, speech, or robotics without NLP/IR
+
+The trap: do NOT just match the most AI keywords. A "Marketing Manager" with a
+perfect AI skill list is not a fit; a Tier-5 candidate who built a recommendation
+system at a product company is. Weigh behavioral signals — an inactive, low-
+response candidate is, for hiring purposes, not available. Down-weight them.
+"""
+
+
+def _sample_jd_text() -> str:
+    """Return the real JD if it ships in the image, else the condensed fallback."""
+    try:
+        text = _SAMPLE_JD_PATH.read_text(encoding="utf-8").strip()
+        return text or _SAMPLE_JD_FALLBACK
+    except Exception:
+        return _SAMPLE_JD_FALLBACK
+
+
+def _load_sample_jd() -> None:
+    """on_click callback — pre-fills the JD textarea before widgets instantiate."""
+    st.session_state["jd_text"] = _sample_jd_text()
 
 
 st.set_page_config(page_title="Redrob Ranker — Velocity Labs", page_icon="🎯", layout="centered")
 _inject_css()
+st.session_state.setdefault("jd_text", "")
 
 # ── Hero ────────────────────────────────────────────────────────────────────────
 st.markdown(
     """
+    <div class="rrx-top">
+      <span class="rrx-logo"></span>
+      <span class="rrx-word">Redrob Ranker</span>
+      <span class="rrx-tagpill">EVIDENCE LEDGER</span>
+      <span class="rrx-spacer"></span>
+      <span class="rrx-mono">CPU · No LLM at rank time · &lt;5 min</span>
+    </div>
     <div class="rr-hero">
-      <div class="rr-hero__badge">🎯 Velocity Labs · INDIA.RUNS Hackathon — Track 01</div>
+      <div class="rr-hero__badge">VELOCITY LABS · INDIA.RUNS HACKATHON — TRACK 01</div>
       <div class="rr-hero__title">Redrob Intelligent Candidate Ranker</div>
       <div class="rr-hero__tag">An evidence ledger for hiring — every rank shows the five signals that earned it. 100K candidates → top 100, CPU-only with no LLM at rank time.</div>
       <div class="rr-pills">
@@ -428,15 +295,25 @@ st.markdown(
 
 # ── Input card ──────────────────────────────────────────────────────────────────
 with st.container(border=True):
-    st.markdown('<div class="rr-section">1 · Job description</div>', unsafe_allow_html=True)
+    hcol, bcol = st.columns([3, 1])
+    with hcol:
+        st.markdown('<div class="rr-section"><span class="rr-num">1</span> Job description</div>', unsafe_allow_html=True)
+    with bcol:
+        st.button(
+            "Load sample JD",
+            on_click=_load_sample_jd,
+            use_container_width=True,
+            help="Fill the box with the Redrob Senior AI Engineer JD so you can run the ranker in one click.",
+        )
     jd_text = st.text_area(
         "Job description",
+        key="jd_text",
         height=180,
         placeholder="Paste the full job description here…",
         label_visibility="collapsed",
     )
     st.markdown(
-        '<div class="rr-section">2 · Candidates <span class="rr-subtle">· optional</span></div>',
+        '<div class="rr-section"><span class="rr-num">2</span> Candidates <span class="rr-subtle">· optional</span></div>',
         unsafe_allow_html=True,
     )
     st.caption(
@@ -459,12 +336,11 @@ with st.container(border=True):
             "(adds a few seconds)."
         )
     run = st.button(
-        "🚀 Run Ranking", type="primary", disabled=not jd_text, use_container_width=True
+        "Run ranking", type="primary", disabled=not jd_text, use_container_width=True
     )
 
 # ── Pipeline (runs on click; results persisted to session_state) ───────────────
 if run:
-    import sys
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
     # With no upload we load a pre-built sample index (built at Docker image
@@ -590,100 +466,22 @@ if run:
         "honeypots": honeypots,
     }
 
-# ── Results: the evidence ledger (rendered from session_state) ─────────────────
+# ── Results: redesigned evidence ledger (rendered from session_state) ──────────
+# All presentation lives in redrob_results_view.render_results_view — a self-
+# contained client-side component. It reads only fields already on the
+# ScoredCandidate objects; no src/ import, no scoring, no LLM, no network.
 results = st.session_state.get("results")
 if not results:
     st.markdown(
-        '<div class="rr-hint">Paste a job description and run the ranker to see the '
-        "evidence ledger — each candidate's score, broken down by signal.</div>",
+        '<div class="rr-hint">Paste a job description (or hit <b>Load sample JD</b>) and run '
+        "the ranker to see the evidence ledger — each candidate's score, broken down by signal.</div>",
         unsafe_allow_html=True,
     )
 else:
-    ranked = results["ranked"]
-    parsed_jd = results["parsed_jd"]
-    csv_data = results["csv"]
-    names = results["names"]
-
-    honeypots = sum(1 for sc in ranked if getattr(sc, "is_honeypot", False))
-    top = float(ranked[0].score) if ranked else 0.0
-
-    rcol, dcol = st.columns([3, 1])
-    with rcol:
-        st.markdown(
-            '<div class="rr-recap">Ranked <b>{n}</b> candidates · <b>{hp}</b> honeypots '
-            "filtered · top score <b>{top:.3f}</b></div>".format(
-                n=len(ranked), hp=honeypots, top=top
-            ),
-            unsafe_allow_html=True,
-        )
-    with dcol:
-        st.download_button(
-            "⬇️ Download CSV",
-            data=csv_data,
-            file_name="submission.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
-
-    honeypots = results.get("honeypots", [])
-    if honeypots:
-        with st.expander(
-            f"🛡️ Honeypots filtered — {len(honeypots)} caught & zeroed", expanded=False
-        ):
-            st.caption(
-                "Profiles tripping 2+ impossible-profile signals are forced to score 0 so "
-                "they can't game the ranking. Over the full 100K pool they fall below the "
-                "top-100 cutoff entirely; here they sit at the tail with score 0."
-            )
-            for hp in honeypots:
-                with st.container(border=True):
-                    st.markdown(_honeypot_card_html(hp), unsafe_allow_html=True)
-
-    with st.expander("🔑 What the engine understood", expanded=False):
-        _render_jd_keywords(parsed_jd)
-
-    st.markdown(
-        '<div class="rr-section">📒 Evidence ledger '
-        f'<span class="rr-subtle">· top {min(_LEDGER_ROWS, len(ranked))}</span></div>',
-        unsafe_allow_html=True,
-    )
-    st.markdown(_render_legend(), unsafe_allow_html=True)
-    st.caption(
-        "Each bar shows how the composite was built — segment width = signal score × its weight."
-    )
-
-    for sc in ranked[:_LEDGER_ROWS]:
-        with st.container(border=True):
-            st.markdown(
-                _ledger_head_html(sc, names.get(sc.candidate_id, sc.candidate_id)),
-                unsafe_allow_html=True,
-            )
-            with st.expander("Evidence & signal breakdown"):
-                _render_evidence(sc)
-
-    with st.expander(f"📄 Full ranking — all {len(ranked)} rows (table)"):
-        import pandas as pd
-        df = pd.DataFrame([
-            {"rank": sc.rank, "candidate_id": sc.candidate_id, "score": sc.score,
-             "title": sc.current_title, "yoe": sc.years_of_experience, "reasoning": sc.reasoning}
-            for sc in ranked
-        ])
-        st.dataframe(
-            df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "rank": st.column_config.NumberColumn("Rank", format="%d", width="small"),
-                "candidate_id": st.column_config.TextColumn("Candidate"),
-                "score": st.column_config.ProgressColumn(
-                    "Score", min_value=0.0, max_value=1.0, format="%.3f"
-                ),
-                "title": st.column_config.TextColumn("Title"),
-                "yoe": st.column_config.NumberColumn("YoE", format="%d", width="small"),
-                "reasoning": st.column_config.TextColumn("Reasoning", width="large"),
-            },
-        )
-    st.caption(
-        f"The ledger shows the top {min(_LEDGER_ROWS, len(ranked))}; the table and the "
-        "downloaded CSV hold the full ranking."
+    render_results_view(
+        ranked=results["ranked"],
+        parsed_jd=results["parsed_jd"],
+        names=results["names"],
+        honeypots=results["honeypots"],
+        csv_data=results["csv"],
     )
