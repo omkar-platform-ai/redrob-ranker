@@ -200,6 +200,9 @@ html, body, [class*="css"], .stApp { font-family: 'Instrument Sans', system-ui, 
 [data-testid="stExpander"] details > summary { padding: 14px 20px; font-size: 0.95rem; font-weight: 700; color: #0f172a; font-family: 'Instrument Sans', sans-serif; }
 [data-testid="stExpander"] details > summary:hover { color: #4f46e5; }
 [data-testid="stExpander"] details[open] > summary { border-bottom: 1px solid #f1f2f6; }
+/* indigo progress bar */
+[data-testid="stProgress"] [role="progressbar"] > div { background-color: #4f46e5 !important; }
+[data-testid="stProgress"] [data-testid="stProgressLabel"], [data-testid="stProgress"] p { font-family: 'Instrument Sans', sans-serif; color: #475569; font-weight: 500; }
 </style>
 """
 
@@ -366,12 +369,15 @@ if run:
 
             SAMPLE_INDEX_DIR = Path(__file__).resolve().parent.parent / "sample_index"
 
+            prog = st.progress(6, text="Parsing the job description (keyword extraction — no LLM)…")
             st.write("Parsing JD (keyword extraction — no LLM, no network)...")
             parsed_jd = _keyword_fallback(jd_text)  # JD-aware, no LLM (rank-time safe)
+            prog.progress(14, text="Loading the embedding model…")
             embedder = get_embedder()
 
             if uploaded is not None:
                 # ── Upload path: parse + embed the provided candidates at runtime ──
+                prog.progress(24, text="Parsing your candidate upload…")
                 st.write("Parsing upload...")
                 raw = uploaded.read().decode("utf-8-sig")  # strips a leading BOM
                 candidates_raw = _load_candidates(raw)
@@ -388,7 +394,9 @@ if run:
                     f"(~{n_batches} batch{'es' if n_batches != 1 else ''}; the slow step, "
                     f"please wait)..."
                 )
+                prog.progress(35, text=f"Embedding {len(texts)} candidates on CPU — the slow step, please wait…")
                 embeddings = embedder.embed_batch(texts)
+                prog.progress(76, text="Building the FAISS vector index…")
                 candidate_ids = [c["candidate_id"] for c in candidates]
                 index = build_index(embeddings, candidate_ids)
                 cands_by_id = {c["candidate_id"]: c for c in candidates}
@@ -401,6 +409,7 @@ if run:
                         "Either upload a candidate file, or build the sample index "
                         "first: python scripts/build_sample_index.py"
                     )
+                prog.progress(50, text="Loading the pre-built sample index (no embedding)…")
                 st.write("Loading pre-built sample index (100 candidates, no embedding)...")
                 index = faiss.read_index(str(idx_file))
                 candidate_ids = json.loads(
@@ -414,16 +423,20 @@ if run:
                 candidates = cache
                 cands_by_id = {c["candidate_id"]: c for c in candidates}
 
+            prog.progress(84, text="Embedding the job description…")
             st.write("Embedding job description (cached on repeat runs)...")
             jd_vec = embedder.embed_text(parsed_jd.to_embedding_text())
 
+            prog.progress(92, text="Scoring & ranking candidates across five signals…")
             st.write("Ranking...")
             k = min(len(candidates), TOP_K_RETRIEVE)
             ann_results = query_index(index, candidate_ids, jd_vec, k)
             engine = RankingEngine()
             ranked = engine.rank(cands_by_id, ann_results, parsed_jd)
+            prog.progress(98, text="Filtering honeypots & generating reasoning…")
             ranked = _demo_demote_excluded(ranked)   # demo-only polish, NOT in production
 
+            prog.progress(100, text="Ranking complete")
             status.update(label="✅ Ranking complete", state="complete", expanded=False)
         except Exception as exc:
             status.update(label="Ranking failed", state="error", expanded=True)
