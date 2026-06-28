@@ -89,7 +89,7 @@ def _candidate_payload(sc, names: dict) -> dict:
     }
 
 
-def render_results_view(ranked, parsed_jd, names, honeypots, csv_data, *, height: int = 880) -> None:
+def render_results_view(ranked, parsed_jd, names, honeypots, csv_data, *, height: int = 820) -> None:
     """Render the redesigned results screen as a self-contained component."""
     cands = [_candidate_payload(sc, names) for sc in ranked]
     hp_reasons = {hp["id"]: hp.get("reasons", []) for hp in (honeypots or [])}
@@ -143,12 +143,12 @@ _TEMPLATE = r"""
   .chip-req{background:#fff;color:#4338ca;border:1px solid #ddd6fb}
   .chip-flag{background:#fdeef0;color:#a8324b;border:1px solid #f6d6dd}
   .main{flex:1;display:flex;min-height:0}
-  .rail{flex:0 0 396px;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e7e9ef;min-height:0}
+  .rail{flex:0 0 440px;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e7e9ef;min-height:0}
   .tabs{flex:0 0 auto;display:flex;gap:4px;padding:12px 14px 0}
   .tabs button{flex:1;height:34px;border:none;background:#f7f8fa;color:#94a3b8;font-family:inherit;font-size:13px;font-weight:600;border-radius:8px 8px 0 0;cursor:pointer;border-bottom:2px solid transparent}
   .tabs button.on{background:#fff;color:#0f172a;border-bottom-color:#4f46e5}
   .tabs button.on.flag{color:#b42318;border-bottom-color:#b42318}
-  .list{flex:1;overflow-y:auto;padding:6px 10px 16px}
+  .list{flex:1;min-height:0;overflow-y:auto;padding:6px 10px 16px}
   .row{display:flex;gap:11px;align-items:center;padding:11px 10px;margin-top:4px;border-radius:10px;cursor:pointer;background:#fff;border:1px solid transparent}
   .row:hover{background:#f7f8fa}
   .row.sel{background:#f1f0fc;border-color:#d7d3f7}
@@ -162,8 +162,8 @@ _TEMPLATE = r"""
   .badge{font-size:16px;font-weight:700;line-height:1}
   .badge-l{font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
   .detail{flex:1;overflow-y:auto;min-width:0}
-  .dwrap{max-width:760px;margin:0 auto;padding:30px 38px 80px}
-  .dwrap.compact{padding:20px 30px 60px}
+  .dwrap{max-width:1100px;margin:0;padding:30px 52px 80px}
+  .dwrap.compact{padding:20px 44px 60px}
   .dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
   .dname{font-size:23px;font-weight:700;letter-spacing:-.02em}
   .gembig{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#8a5a06;background:#fdf3da;border:1px solid #f0dca0;padding:3px 9px;border-radius:999px}
@@ -177,7 +177,7 @@ _TEMPLATE = r"""
   .corro{margin-top:22px;display:flex;align-items:center;gap:14px;padding:13px 16px;background:#f7f8fa;border:1px solid #ecedf2;border-radius:11px}
   .cdot{width:12px;height:12px;border-radius:999px}
   .kicker{font-size:12px;font-weight:700;color:#6b7280;letter-spacing:.02em}
-  .sk{font-size:12px;font-weight:500;background:#ecfdf3;color:#15803d;border:1px solid #cdeed8;padding:4px 10px;border-radius:999px}
+  .sk{font-size:12px;font-weight:500;background:#ecfdf3;color:#15803d;border:1px solid #cdeed8;padding:4px 10px;border-radius:999px;white-space:nowrap}
   .why{font-size:14px;line-height:1.6;color:#334155;margin-top:8px;text-wrap:pretty}
   .hp{margin-top:22px;background:#fdf1f2;border:1px solid #f6d2d8;border-radius:12px;padding:16px 18px}
   .micro{font-size:11px;color:#b0b6c0}
@@ -287,7 +287,7 @@ function render(){
   var jd=D.jd;
 
   var html='';
-  html+='<div class="topbar"><div style="display:flex;align-items:center;gap:10px"><div class="logo"></div><div style="font-weight:700;font-size:15px;letter-spacing:-.01em">Redrob Ranker</div><div class="pill">EVIDENCE LEDGER</div></div>'
+  html+='<div class="topbar"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:12px;font-weight:700;color:#6b7280;letter-spacing:.05em;text-transform:uppercase">Evidence ledger</span></div>'
     +'<div class="vr"></div>'
     +'<div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1"><span style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(jd.role)+'</span><span class="mono" style="font-size:12px;color:#9ca3af;white-space:nowrap">'+esc(jd.band)+'</span></div>'
     +'<div style="display:flex;align-items:center;gap:14px;flex:0 0 auto"><div class="mono" style="display:flex;gap:16px;font-size:12px;color:#6b7280">'
