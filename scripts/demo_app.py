@@ -195,6 +195,11 @@ html, body, [class*="css"], .stApp { font-family: 'Instrument Sans', system-ui, 
 .stButton > button[kind="primary"] { background: #4f46e5; border-color: #4f46e5; }
 .stButton > button[kind="primary"]:hover { background: #4338ca; border-color: #4338ca; }
 [data-testid="stAlert"], [data-testid="stNotification"] { border-radius: 12px; font-family: 'Instrument Sans', sans-serif; }
+/* input expander styled like the component's cards */
+[data-testid="stExpander"] { border: 1px solid #e7e9ef; border-radius: 16px; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+[data-testid="stExpander"] details > summary { padding: 14px 20px; font-size: 0.95rem; font-weight: 700; color: #0f172a; font-family: 'Instrument Sans', sans-serif; }
+[data-testid="stExpander"] details > summary:hover { color: #4f46e5; }
+[data-testid="stExpander"] details[open] > summary { border-bottom: 1px solid #f1f2f6; }
 </style>
 """
 
@@ -293,8 +298,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── Input card ──────────────────────────────────────────────────────────────────
-with st.container(border=True):
+# ── Input card (collapses once results exist, so the ledger surfaces) ──────────
+_has_results = st.session_state.get("results") is not None
+with st.expander("Job description & candidates  ·  edit & run", expanded=not _has_results):
     hcol, bcol = st.columns([3, 1])
     with hcol:
         st.markdown('<div class="rr-section"><span class="rr-num">1</span> Job description</div>', unsafe_allow_html=True)
@@ -465,6 +471,10 @@ if run:
         "names": names,
         "honeypots": honeypots,
     }
+    # Rerun immediately so the page re-renders with results present: the input
+    # expander collapses (it reads session_state["results"]) and the ledger
+    # surfaces right under the hero instead of below the open input card.
+    st.rerun()
 
 # ── Results: redesigned evidence ledger (rendered from session_state) ──────────
 # All presentation lives in redrob_results_view.render_results_view — a self-

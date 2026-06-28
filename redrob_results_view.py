@@ -139,7 +139,7 @@ _TEMPLATE = r"""
   .lbl{font-size:11px;font-weight:600;color:#9aa1ad;letter-spacing:.03em}
   .jdpanel{flex:0 0 auto;padding:14px 22px;background:#f3f1fb;border-bottom:1px solid #e6e2f6;display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start}
   .jdk{font-size:10px;font-weight:700;color:#8b80c4;letter-spacing:.06em}
-  .chip{font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px}
+  .chip{font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;white-space:nowrap}
   .chip-req{background:#fff;color:#4338ca;border:1px solid #ddd6fb}
   .chip-flag{background:#fdeef0;color:#a8324b;border:1px solid #f6d6dd}
   .main{flex:1;display:flex;min-height:0}
@@ -188,7 +188,7 @@ var D = __PAYLOAD__;
 var SIG = [["semantic","Semantic","#6366f1",.40],["role_fit","Role-fit","#0ea5e9",.20],["skill","Skill","#10b981",.15],["behavioral","Behavioral","#f59e0b",.15],["career","Career","#8b5cf6",.10]];
 var ranked = D.cands.filter(function(c){return !c.flagged;});
 var flagged = D.cands.filter(function(c){return c.flagged;});
-var st = { sel:(ranked[0]||D.cands[0]||{}).id, mode:"fit", density:"comfortable", tab:"ranked", jd:false };
+var st = { sel:(ranked[0]||D.cands[0]||{}).id, mode:"fit", density:"comfortable", tab:"ranked", jd:true };
 
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function tier(c){ if(c.flagged) return {l:"Zeroed",col:"#b42318"}; var f=c.score*100; if(f>=70)return{l:"Strong fit",col:"#4f46e5"}; if(f>=50)return{l:"Possible",col:"#b45309"}; return{l:"Weak fit",col:"#64748b"}; }
@@ -294,7 +294,7 @@ function render(){
       +'<span><b style="color:#111827">'+ranked.length+'</b> ranked</span><span><b style="color:#b42318">'+flagged.length+'</b> zeroed</span><span>top <b style="color:#4f46e5">'+topFit()+'</b></span></div>'
     +'<button class="btn" data-act="csv"><span class="mono" style="font-size:14px">\u2193</span> CSV</button></div></div>';
 
-  html+='<div class="controls"><button class="ghost" data-act="jd"><span style="color:#94a3b8">'+(st.jd?"\u25be":"\u25b8")+'</span> What the engine understood</button><div style="flex:1"></div>'
+  html+='<div class="controls"><button data-act="jd" style="display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 14px;border:1px solid #c9c2f7;background:#eceafe;color:#4338ca;font-family:inherit;font-size:12.5px;font-weight:700;border-radius:8px;cursor:pointer"><span style="font-size:13px">'+(st.jd?"\u25be":"\u25b8")+'</span> '+(st.jd?"Hide":"Show")+' what the engine understood</button><div style="flex:1"></div>'
     +'<div style="display:flex;align-items:center;gap:7px"><span class="lbl">SCORE</span><div class="seg">'
       +'<button data-mode="fit" class="'+(st.mode==="fit"?"on":"")+'">Fit /100</button>'
       +'<button data-mode="raw" class="mono '+(st.mode==="raw"?"on":"")+'">0\u20131</button>'
