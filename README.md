@@ -127,11 +127,16 @@ python validate_submission.py --submission submission.csv --candidates data/cand
 
 ## Step 4 — Test in the sandbox (Stage 1)
 
-The sandbox is a self-contained Streamlit app (`scripts/demo_app.py`): it accepts **≤100 candidates** by upload, parses the JD with a fast keyword fallback (**no LLM**), builds the FAISS index **in-memory** from the upload, ranks, and offers a downloadable CSV. It needs no pre-computed artifacts and runs CPU-only.
+The sandbox is a self-contained Streamlit app (`scripts/demo_app.py`). It parses the JD with a fast keyword fallback (**no LLM**) and ranks CPU-only via one of two paths:
+
+- **Upload** ≤100 candidates (JSONL or JSON array, redrob schema) → parsed and embedded **in-memory** at runtime (the slow step on free-tier CPU).
+- **No upload** → loads a **pre-built 100-candidate sample index** (`sample_index/`), baked into the Docker image at build time by `scripts/build_sample_index.py`, so only the JD is embedded (fast). This mirrors how production `rank.py` loads a pre-built index.
+
+Either way it offers a downloadable CSV with columns `candidate_id,rank,score,reasoning`.
 
 ### Prepare a sample input (≤100 candidates)
 
-The full dataset is gitignored (not ours to publish), so carve off a small sample to upload — this also creates the `data/sample_candidates.json` the Dockerfile bakes into the image:
+A `data/sample_candidates.json` (100 candidates) is already committed and is what the Dockerfile bakes into the image. Regenerate it only if you want a different sample (the full dataset is gitignored — not ours to publish):
 
 ```bash
 head -100 data/candidates.jsonl > data/sample_candidates.json
@@ -141,10 +146,11 @@ head -100 data/candidates.jsonl > data/sample_candidates.json
 
 ```bash
 pip install -r requirements.txt
+python scripts/build_sample_index.py   # builds sample_index/ for the no-upload path
 streamlit run scripts/demo_app.py
 ```
 
-Open <http://localhost:8501>, paste the JD (contents of `data/job_description.txt`), upload `data/sample_candidates.json`, click **🚀 Run Ranking**, then download `submission.csv`.
+Open <http://localhost:8501>, paste the JD (contents of `data/job_description.txt`), then either upload `data/sample_candidates.json` or leave the uploader empty to rank the built-in sample. Click **🚀 Run Ranking**, then download `submission.csv`.
 
 ### Option B — Deploy to HuggingFace Spaces
 
@@ -163,7 +169,7 @@ Open <http://localhost:7860>. The image sets `HF_HUB_OFFLINE=1` / `TRANSFORMERS_
 
 ### What to verify in the sandbox
 
-- App loads, accepts a JD + ≤100 candidates
+- App loads, accepts a JD + ≤100 candidates (or no upload → built-in sample)
 - Produces a downloadable CSV with columns `candidate_id,rank,score,reasoning`
 - Top-20 preview shows ML/AI engineers with **non-increasing** scores
 - Full run completes in **< 5 min on CPU**
@@ -220,14 +226,18 @@ redrob-ranker/
 │       ├── role_fit.py    # Title + company-type + location + YoE + JD disqualifiers
 │       └── skill.py       # Proficiency-weighted fuzzy match
 ├── scripts/
-│   └── demo_app.py        # Streamlit sandbox
-├── tests/                 # pytest suite: parser, scorers, honeypot, ranker, reasoning
+│   ├── build_sample_index.py  # Build sample_index/ for the demo (Docker build / local)
+│   └── demo_app.py            # Streamlit sandbox
+├── tests/                 # pytest suite: parser, scorers, honeypot, ranker, reasoning, jd
 │   ├── conftest.py        # shared fixtures
 │   ├── test_candidate_parser.py
 │   ├── test_honeypot.py
+│   ├── test_jd_parser.py
 │   ├── test_ranker.py
 │   ├── test_reasoning.py
 │   └── test_scorers.py
+├── sample_index/          # Pre-built demo index (gitignored; built at image-build time)
 └── data/
-    └── index/             # Pre-computed artifacts (gitignored)
+    ├── sample_candidates.json  # Committed 100-candidate demo sample (baked into image)
+    └── index/                  # Pre-computed artifacts (gitignored)
 ```

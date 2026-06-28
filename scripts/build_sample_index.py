@@ -25,12 +25,12 @@ if str(REPO) not in sys.path:
 
 # Import torch before faiss: on macOS, initialising faiss's OpenMP runtime first
 # segfaults on the first CPU parallel region (the encode). No-op on Linux.
-import torch  # noqa: F401  -- MUST precede `import faiss`
-import faiss
+import torch  # noqa: F401,E402  -- MUST precede `import faiss`
+import faiss  # noqa: E402
 
-from src.parsers.candidate import parse_redrob_candidate
-from src.embedder import get_embedder
-from src.index import build_index
+from src.parsers.candidate import parse_redrob_candidate  # noqa: E402
+from src.embedder import get_embedder  # noqa: E402
+from src.index import build_index  # noqa: E402
 
 SAMPLE_JSON = REPO / "data" / "sample_candidates.json"
 OUT_DIR = REPO / "sample_index"
