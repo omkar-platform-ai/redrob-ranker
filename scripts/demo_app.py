@@ -151,13 +151,13 @@ html, body, [class*="css"], .stApp { font-family: 'Instrument Sans', system-ui, 
 
 /* tidy chrome + a centered, comfortable column (matches the results component) */
 #MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stHeader"] { visibility: hidden; height: 0; }
-.block-container { max-width: 980px; padding-top: 2.4rem; padding-bottom: 4rem; }
+.block-container { max-width: 1320px; padding-top: 2.4rem; padding-bottom: 4rem; padding-left: 2rem; padding-right: 2rem; }
 
 /* top bar — mirrors the results component header */
-.rrx-top { display: flex; align-items: center; gap: 13px; padding: 0 4px 14px; }
-.rrx-logo { width: 12px; height: 12px; border-radius: 3px; background: #4f46e5; transform: rotate(45deg); display: inline-block; }
-.rrx-word { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; color: #0f172a; }
-.rrx-tagpill { font-size: 11px; font-weight: 600; color: #6b7280; background: #f1f2f6; padding: 3px 9px; border-radius: 6px; letter-spacing: 0.02em; }
+.rrx-top { display: flex; align-items: center; gap: 13px; padding: 0 4px 16px; }
+.rrx-logo { width: 15px; height: 15px; border-radius: 4px; background: #4f46e5; transform: rotate(45deg); display: inline-block; }
+.rrx-word { font-weight: 700; font-size: 21px; letter-spacing: -0.015em; color: #0f172a; }
+.rrx-tagpill { font-size: 12px; font-weight: 600; color: #6b7280; background: #f1f2f6; padding: 4px 10px; border-radius: 7px; letter-spacing: 0.02em; }
 .rrx-spacer { flex: 1; }
 .rrx-mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #94a3b8; }
 
@@ -264,7 +264,7 @@ def _load_sample_jd() -> None:
     st.session_state["jd_text"] = _sample_jd_text()
 
 
-st.set_page_config(page_title="Redrob Ranker — Velocity Labs", page_icon="🎯", layout="centered")
+st.set_page_config(page_title="Redrob Ranker — Velocity Labs", page_icon="🎯", layout="wide")
 _inject_css()
 st.session_state.setdefault("jd_text", "")
 
