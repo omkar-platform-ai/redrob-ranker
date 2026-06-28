@@ -87,7 +87,10 @@ def _demo_demote_excluded(ranked: list) -> list:
 # Skill chips. Streamlit 1.40 has no markdown badge syntax, so we render real HTML
 # spans via unsafe_allow_html. Colors live in the CSS (.rr-chip--*) injected by
 # _inject_css(); here we only pick the class so markup stays clean.
-_CHIP_CLASS = {"blue": "rr-chip--blue", "green": "rr-chip--green", "red": "rr-chip--red"}
+_CHIP_CLASS = {
+    "blue": "rr-chip--blue", "green": "rr-chip--green",
+    "red": "rr-chip--red", "gold": "rr-chip--gold",
+}
 
 
 def _badges(items: list[str], color: str) -> str:
@@ -196,6 +199,7 @@ html, body, [class*="css"], .stApp { font-family: 'Inter', system-ui, -apple-sys
 .rr-chip--blue  { background: #eef2ff; color: #3730a3; border-color: #dfe3fb; }
 .rr-chip--green { background: #ecfdf3; color: #1b7a32; border-color: #d6f5df; }
 .rr-chip--red   { background: #fef2f2; color: #b42318; border-color: #fbdcdc; }
+.rr-chip--gold  { background: #fef6e0; color: #92600a; border-color: #f3dc97; }
 
 /* scan recap */
 .rr-recap { font-size: 0.95rem; color: #334155; }
@@ -212,6 +216,7 @@ html, body, [class*="css"], .stApp { font-family: 'Inter', system-ui, -apple-sys
 .rr-led__rank { font-weight: 800; color: #cbd5e1; font-size: 0.92rem; margin-right: 8px; }
 .rr-led__rank--top { color: #4f46e5; }
 .rr-led__name { font-weight: 700; color: #0f172a; font-size: 1.0rem; }
+.rr-gem { display: inline-block; margin-left: 8px; font-size: 0.66rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: #92600a; background: #fef6e0; border: 1px solid #f3dc97; padding: 2px 8px; border-radius: 999px; vertical-align: middle; white-space: nowrap; }
 .rr-led__score { font-weight: 800; color: #0f172a; font-size: 1.18rem; white-space: nowrap; letter-spacing: -0.01em; }
 .rr-led__score small { font-size: 0.6rem; color: #94a3b8; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-left: 4px; }
 .rr-led__meta { font-size: 0.8rem; color: #94a3b8; margin: 3px 0 0; }
@@ -288,16 +293,47 @@ def _contribution_bar(sc) -> str:
 def _ledger_head_html(sc, name: str) -> str:
     """Headline + meta + contribution bar + reasoning for one ledger card."""
     rank_cls = " rr-led__rank--top" if sc.rank <= 3 else ""
+    gem = ' <span class="rr-gem">💎 Hidden gem</span>' if getattr(sc, "hidden_gem_reasons", None) else ""
     return (
         '<div class="rr-led__head">'
         f'<div class="rr-led__id"><span class="rr-led__rank{rank_cls}">#{sc.rank}</span>'
-        f'<span class="rr-led__name">{html.escape(str(name))}</span></div>'
+        f'<span class="rr-led__name">{html.escape(str(name))}</span>{gem}</div>'
         f'<div class="rr-led__score">{float(sc.score or 0.0):.4f}<small>score</small></div>'
         "</div>"
         f'<div class="rr-led__meta">{_meta_line(sc)}</div>'
         f"{_contribution_bar(sc)}"
         f'<div class="rr-led__reason">{html.escape(sc.reasoning or "")}</div>'
     )
+
+
+_CORROBORATION_BAR = 0.50  # neutral [0,1] midpoint — not a tuned threshold
+
+_GEM_LABELS = {"open_source": "Open-source contributor", "multi_promotion": "2+ promotions"}
+
+
+def _humanize_gem(reason: str) -> str:
+    """Turn a hidden-gem reason code into a readable phrase."""
+    return _GEM_LABELS.get(reason, reason.replace("_", " "))
+
+
+def _signal_corroboration(sc) -> tuple[int, str]:
+    """How many of the 5 independent signals clear the 0.50 midpoint.
+
+    A defensible, on-card-verifiable replacement for the opaque composite
+    'confidence' band: it measures agreement across signals, so it never
+    contradicts the rank.
+    """
+    n = sum(
+        1
+        for key, _label, _color, _w in _SIGNAL_META
+        if float(getattr(sc, key, 0.0) or 0.0) >= _CORROBORATION_BAR
+    )
+    label = (
+        "Strong corroboration" if n >= 4
+        else "Moderate corroboration" if n == 3
+        else "Mixed signals"
+    )
+    return n, label
 
 
 def _render_evidence(sc) -> None:
@@ -307,9 +343,9 @@ def _render_evidence(sc) -> None:
         unsafe_allow_html=True,
     )
     if sc.hidden_gem_reasons:
-        gems = [r.replace("_", " ") for r in sc.hidden_gem_reasons]
+        gems = [_humanize_gem(r) for r in sc.hidden_gem_reasons]
         st.markdown(
-            f"**Hidden-gem signals:** {_badges(gems, 'blue')}", unsafe_allow_html=True
+            f"**💎 Hidden gem:** {_badges(gems, 'gold')}", unsafe_allow_html=True
         )
     if getattr(sc, "is_honeypot", False):
         st.markdown("**Flag:** ⚠️ honeypot — composite forced to 0")
@@ -318,7 +354,11 @@ def _render_evidence(sc) -> None:
         for key, label, _color, _w in _SIGNAL_META
     )
     st.markdown(f"**Signal scores:** {breakdown}")
-    st.caption(f"Confidence: {getattr(sc, 'confidence', '—')}")
+    if getattr(sc, "is_honeypot", False):
+        st.caption("Evidence: disqualified — flagged as honeypot")
+    else:
+        n, label = _signal_corroboration(sc)
+        st.caption(f"Evidence: {label} — {n} of 5 signals above {_CORROBORATION_BAR:.2f}")
 
 
 # ── Honeypot panel (anti-gaming evidence) ───────────────────────────────────────
@@ -379,7 +419,7 @@ st.markdown(
         <span class="rr-pill rr-pill--accent">Explainable scoring</span>
         <span class="rr-pill">CPU · No network · &lt;5 min</span>
         <span class="rr-pill">Honeypot filtering</span>
-        <span class="rr-pill">Dark-horse detection</span>
+        <span class="rr-pill">Hidden gems</span>
       </div>
     </div>
     """,
@@ -400,14 +440,24 @@ with st.container(border=True):
         unsafe_allow_html=True,
     )
     st.caption(
-        "Upload ≤100 candidates (JSONL or JSON array, redrob schema), or leave empty to "
-        "rank the built-in 100-candidate sample — no per-candidate embedding at runtime."
+        "Upload ≤100 candidates (JSONL / JSON array, redrob schema), or leave empty "
+        "for the built-in demo sample."
     )
     uploaded = st.file_uploader(
         "Candidate file",
         type=["jsonl", "json"],
         label_visibility="collapsed",
     )
+    if uploaded is None:
+        st.info(
+            "⚡ **Ranking the built-in 100-candidate demo sample** — pre-indexed at "
+            "build time, so only the job description is embedded now (fast)."
+        )
+    else:
+        st.success(
+            "📤 **Ranking your uploaded candidates** - parsed & embedded live on CPU "
+            "(adds a few seconds)."
+        )
     run = st.button(
         "🚀 Run Ranking", type="primary", disabled=not jd_text, use_container_width=True
     )
@@ -555,15 +605,14 @@ else:
     names = results["names"]
 
     honeypots = sum(1 for sc in ranked if getattr(sc, "is_honeypot", False))
-    dark_horses = sum(1 for sc in ranked if getattr(sc, "hidden_gem_reasons", None))
     top = float(ranked[0].score) if ranked else 0.0
 
     rcol, dcol = st.columns([3, 1])
     with rcol:
         st.markdown(
             '<div class="rr-recap">Ranked <b>{n}</b> candidates · <b>{hp}</b> honeypots '
-            "filtered · <b>{dh}</b> dark horses · top score <b>{top:.3f}</b></div>".format(
-                n=len(ranked), hp=honeypots, dh=dark_horses, top=top
+            "filtered · top score <b>{top:.3f}</b></div>".format(
+                n=len(ranked), hp=honeypots, top=top
             ),
             unsafe_allow_html=True,
         )
