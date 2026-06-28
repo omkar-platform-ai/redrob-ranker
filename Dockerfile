@@ -27,7 +27,7 @@ COPY rank.py precompute.py validate_submission.py ./
 COPY data/sample_candidates.json ./data/
 
 # Streamlit demo app + config (XSRF off: HF proxy breaks the upload-cookie flow)
-COPY scripts/demo_app.py ./demo_app.py
+COPY scripts/demo_app.py ./scripts/demo_app.py
 COPY scripts/build_sample_index.py ./scripts/build_sample_index.py
 COPY .streamlit ./.streamlit
 
@@ -44,4 +44,4 @@ ENV PYTHONPATH=/app
 ENV STREAMLIT_SERVER_PORT=7860
 ENV STREAMLIT_SERVER_HEADLESS=true
 
-CMD ["streamlit", "run", "demo_app.py"]
+CMD ["streamlit", "run", "scripts/demo_app.py"]
