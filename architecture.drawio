@@ -40,7 +40,7 @@
         <mxCell id="input_jd" parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=1.4;fontSize=11;fontStyle=1;fontColor=#1a3a6e;" value="job_description.txt&#10;Raw JD text">
           <mxGeometry x="28" y="226" width="128" height="56" as="geometry" />
         </mxCell>
-        <mxCell id="candidate_parser" parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1.4;fontSize=9;align=center;verticalAlign=top;spacingTop=6;fontColor=#444444;" value="&lt;b style=&quot;font-size:11px;color:#7d5a00&quot;&gt;Candidate Parser&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;color:#666&quot;&gt;src/parsers/candidate.py&lt;/span&gt;&lt;br&gt;&lt;br&gt;· Maps redrob_signals fields&lt;br&gt;· Derives career stats + consulting flag&lt;br&gt;· Builds embedding_text (career-first)&lt;br&gt;· stdlib-only (rank-time safe)">
+        <mxCell id="candidate_parser" parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1.4;fontSize=9;align=center;verticalAlign=top;spacingTop=6;fontColor=#444444;" value="&lt;b style=&quot;font-size:11px;color:#7d5a00&quot;&gt;Candidate Parser&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;color:#666&quot;&gt;src/parsers/candidate.py&lt;/span&gt;&lt;br&gt;&lt;br&gt;· Maps redrob_signals fields&lt;br&gt;· Derives career stats + consulting flag&lt;br&gt;· Builds embedding_text (career-first)&lt;br&gt;· stdlib + dateutil (rank-time safe)">
           <mxGeometry x="180" y="98" width="204" height="120" as="geometry" />
         </mxCell>
         <mxCell id="jd_parser" parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1.4;fontSize=9;align=center;verticalAlign=top;spacingTop=6;fontColor=#444444;" value="&lt;b style=&quot;font-size:11px;color:#7d5a00&quot;&gt;JD Parser (LLM)&lt;/b&gt;&lt;br&gt;&lt;span style=&quot;color:#666&quot;&gt;src/parsers/jd.py&lt;/span&gt;&lt;br&gt;· Extracts skills · YoE range · disqualifiers&lt;br&gt;· Keyword fallback if no API key">
@@ -76,7 +76,7 @@
         </mxCell>
 
         <!-- ── Scorer container ── -->
-        <mxCell id="scorer_bg" parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffde7;strokeColor=#f9a825;strokeWidth=1.5;opacity=90;arcSize=3;verticalAlign=top;fontSize=11;fontStyle=1;fontColor=#5d4037;spacingTop=6;" value="Multi-Signal Ranker  ·  src/ranker.py">
+        <mxCell id="scorer_bg" parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffde7;strokeColor=#f9a825;strokeWidth=1.5;opacity=90;arcSize=3;verticalAlign=top;fontSize=11;fontStyle=1;fontColor=#5d4037;spacingTop=6;" value="RankingEngine  ·  src/ranker.py">
           <mxGeometry x="200" y="374" width="560" height="364" as="geometry" />
         </mxCell>
         <mxCell id="scorer_semantic" parent="1" vertex="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#1976d2;strokeWidth=1.1;fontSize=8;fontColor=#1565c0;" value="&lt;b style=&quot;font-size:11px;color:#0d47a1&quot;&gt;Semantic · 40%&lt;/b&gt;&lt;br&gt;FAISS cosine similarity">

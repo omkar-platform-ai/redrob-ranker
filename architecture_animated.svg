@@ -215,7 +215,7 @@
   <rect x="196" y="340" width="720" height="376" rx="7"
         fill="#fffde7" stroke="#f9a825" stroke-width="1.5" opacity=".85"/>
   <text x="556" y="357" text-anchor="middle" font-size="10" font-weight="700" fill="#5d4037">
-    Multi-Signal Ranker  ·  src/ranker.py
+    RankingEngine  ·  src/ranker.py
   </text>
 
   <!-- Scorer row S1 — Semantic -->

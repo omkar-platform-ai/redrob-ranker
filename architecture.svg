@@ -55,7 +55,7 @@
   <text x="282" y="156" text-anchor="middle" font-size="9" fill="#444">· Maps redrob_signals fields</text>
   <text x="282" y="171" text-anchor="middle" font-size="9" fill="#444">· Derives career stats + consulting flag</text>
   <text x="282" y="186" text-anchor="middle" font-size="9" fill="#444">· Builds embedding_text (career-first)</text>
-  <text x="282" y="201" text-anchor="middle" font-size="9" fill="#444">· stdlib-only (rank-time safe)</text>
+  <text x="282" y="201" text-anchor="middle" font-size="9" fill="#444">· stdlib + dateutil (rank-time safe)</text>
 
   <!-- JD Parser -->
   <g filter="url(#sh)">
@@ -152,7 +152,7 @@
   <!-- Scorer container -->
   <rect x="200" y="374" width="560" height="364" rx="8" fill="#fffde7" stroke="#f9a825" stroke-width="1.5" opacity=".9"/>
   <text x="480" y="394" text-anchor="middle" font-size="11" font-weight="700" fill="#5d4037">
-    Multi-Signal Ranker  ·  src/ranker.py
+    RankingEngine  ·  src/ranker.py
   </text>
 
   <!-- ANN → scorers -->

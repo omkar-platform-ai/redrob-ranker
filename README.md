@@ -18,6 +18,13 @@ A multi-signal AI ranking engine that finds the right candidates — not just th
 
 ## Architecture
 
+![Redrob Ranker system architecture: an unconstrained pre-computation pipeline (LLM JD parsing, embedding, FAISS index build) feeding a constraint-bound CPU-only ranking step (multi-signal fusion, honeypot zero-out, template reasoning) that emits a 100-row submission CSV](architecture.svg)
+
+*Two phases: unconstrained pre-compute (LLM + embeddings + FAISS, run once) → constrained rank step (≤5 min, CPU-only, no LLM, no network) → 100-row CSV.*
+
+<details>
+<summary>Same architecture as a text diagram</summary>
+
 ```
 PRE-COMPUTATION (no time limit, run once)
 ─────────────────────────────────────────
@@ -36,7 +43,7 @@ FAISS index + parsed_jd.json (from disk)
        │
        ├─► Embed JD ──► ANN search ──► top-500 candidates
        │
-       └─► MultiSignalRanker (for each of 500):
+       └─► RankingEngine (for each of 500):
               ├── Semantic     40%  cosine similarity (FAISS score)
               ├── Role-Fit     20%  title + company-type + location + YoE band + JD disqualifiers
               ├── Skill        15%  proficiency-weighted fuzzy match (RapidFuzz)
@@ -48,6 +55,8 @@ FAISS index + parsed_jd.json (from disk)
               │
               └──► top-100 ranked CSV
 ```
+
+</details>
 
 **Final composite = 0.50 × NDCG@10 + 0.30 × NDCG@50 + 0.15 × MAP + 0.05 × P@10 — see submission_spec**
 
@@ -210,6 +219,7 @@ redrob-ranker/
 ├── submission_metadata.yaml
 ├── requirements.txt
 ├── Dockerfile             # Sandbox (Streamlit demo)
+├── redrob_results_view.py # Client-side results view (rendered by demo_app.py)
 ├── src/
 │   ├── config.py          # All weights and constants
 │   ├── embedder.py        # SentenceTransformer wrapper
@@ -238,6 +248,7 @@ redrob-ranker/
 │   └── test_scorers.py
 ├── sample_index/          # Pre-built demo index (gitignored; built at image-build time)
 └── data/
+    ├── job_description.txt     # Provided JD (sample input for the demo)
     ├── sample_candidates.json  # Committed 100-candidate demo sample (baked into image)
     └── index/                  # Pre-computed artifacts (gitignored)
 ```
