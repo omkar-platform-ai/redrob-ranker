@@ -62,6 +62,21 @@ FAISS index + parsed_jd.json (from disk)
 
 ---
 
+## Pre-requisites
+
+| Need | Detail |
+|---|---|
+| **Python** | **3.11** (the tested/canonical version — matches the `python:3.11-slim` Docker base; CPython 3.12 also works). `pip` + the `venv` module. |
+| **Git** | To clone this repo. |
+| **Disk** | ~1 GB free: `bge-base` model (~430 MB, cached to `~/.cache/huggingface/`) + FAISS index (~295 MB) + parsed cache. |
+| **Network** | Needed **at setup only** — for `pip install` and the first-run model download. The ranking step (Step 2) runs fully offline. |
+| **LLM API key** | **Pre-computation only** (Step 1 JD parse). Anthropic *or* Gemini — set in `.env` (see below). Not needed for ranking (Step 2) or the sandbox demo (Step 4), which use a keyword fallback. |
+| **OS** | Setup snippets are bash, tested on **macOS / Linux**. On **Windows** use **WSL2** or the **Docker** path (Step 4, Option C). |
+
+> Optional: **Docker** — only if you use the Docker / HuggingFace Spaces path (Step 4, Options B & C).
+
+---
+
 ## Setup
 
 ```bash
