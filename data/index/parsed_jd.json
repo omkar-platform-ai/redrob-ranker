@@ -2,19 +2,18 @@
   "title": "Senior AI Engineer \u2014 Founding Team",
   "required_skills": [
     "Production embeddings-based retrieval systems",
-    "Vector databases or hybrid search infrastructure",
+    "Vector databases (Pinecone, Weaviate, Qdrant, Milvus, OpenSearch, Elasticsearch, FAISS)",
     "Python",
-    "Ranking system evaluation frameworks",
+    "Ranking evaluation frameworks (NDCG, MRR, MAP, A/B testing)",
     "ML/AI systems design",
     "Production deployment experience"
   ],
   "nice_to_have_skills": [
-    "LLM fine-tuning",
+    "LLM fine-tuning (LoRA, QLoRA, PEFT)",
     "Learning-to-rank models",
     "HR-tech or recruiting tech experience",
-    "Distributed systems",
-    "Large-scale inference optimization",
-    "Open-source AI/ML contributions"
+    "Distributed systems and large-scale inference optimization",
+    "Open-source ML/AI contributions"
   ],
   "min_experience_years": 5,
   "max_experience_years": 9,
@@ -29,17 +28,18 @@
   ],
   "industry_preferences": [
     "product companies",
-    "Series A startups",
-    "AI-native platforms"
+    "AI startups",
+    "Series A/B companies"
   ],
   "disqualifiers": [
-    "pure research background without production deployment",
-    "LLM-only experience under 12 months without pre-LLM ML production",
-    "no production code in last 18 months",
-    "title-chasing with job changes every 1.5 years",
-    "consulting-only background",
-    "primary expertise in computer vision/speech/robotics",
-    "closed-source proprietary work 5+ years without external validation"
+    "pure research environment background without production deployment",
+    "AI experience limited to recent LangChain/OpenAI projects without pre-LLM ML production experience",
+    "no production code written in last 18 months",
+    "title-chasing career trajectory (changing companies every 1.5 years)",
+    "consulting-only background (TCS, Infosys, Wipro, Accenture, Cognizant, Capgemini)",
+    "primary expertise in computer vision, speech, or robotics without NLP/IR exposure",
+    "5+ years entirely on closed-source proprietary systems without external validation",
+    "notice period 30+ days (higher bar applied)"
   ],
-  "raw_summary": "Own the intelligence layer (ranking, retrieval, matching systems) at a Series A AI talent intelligence platform. Ship improved ranking v2 in first 90 days using embeddings and hybrid retrieval, then build evaluation infrastructure and mentor growing engineering team. Requires 5-9 years experience with hands-on production ML at product companies, deep expertise in embeddings/vector databases/ranking evaluation, strong Python, and ability to balance technical depth with scrappy shipping velocity."
+  "raw_summary": "Senior AI Engineer joining founding ML team at Series A talent intelligence platform to own ranking, retrieval, and matching systems. Role requires 5-9 years experience with production embeddings/vector databases and strong evaluation framework knowledge, combined with scrappy product-shipping mentality. Heavy emphasis on hands-on coding, not research-only backgrounds."
 }
