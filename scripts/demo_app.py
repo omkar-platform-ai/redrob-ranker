@@ -131,24 +131,24 @@ html, body, [class*="css"], .stApp { font-family: 'Instrument Sans', system-ui, 
 
 /* tidy chrome + a centered, comfortable column (matches the results component) */
 #MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stHeader"] { visibility: hidden; height: 0; }
-.block-container { max-width: 100%; padding-top: 2.4rem; padding-bottom: 4rem; padding-left: 3rem; padding-right: 3rem; }
+.block-container { max-width: 100%; padding-top: 1rem; padding-bottom: 2rem; padding-left: 3rem; padding-right: 3rem; }
 
 /* top bar — mirrors the results component header */
-.rrx-top { display: flex; align-items: center; gap: 13px; padding: 0 4px 16px; }
-.rrx-logo { width: 15px; height: 15px; border-radius: 4px; background: #4f46e5; transform: rotate(45deg); display: inline-block; }
-.rrx-word { font-weight: 700; font-size: 21px; letter-spacing: -0.015em; color: #0f172a; }
+.rrx-top { display: flex; align-items: center; gap: 12px; padding: 0 4px 9px; }
+.rrx-logo { width: 13px; height: 13px; border-radius: 4px; background: #4f46e5; transform: rotate(45deg); display: inline-block; }
+.rrx-word { font-weight: 700; font-size: 18px; letter-spacing: -0.015em; color: #0f172a; }
 .rrx-tagpill { font-size: 12px; font-weight: 600; color: #6b7280; background: #f1f2f6; padding: 4px 10px; border-radius: 7px; letter-spacing: 0.02em; }
 .rrx-spacer { flex: 1; }
 .rrx-mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #94a3b8; }
 
 /* hero — white card + hairline, same surface language as the ledger */
-.rr-hero { background: #fff; border: 1px solid #e7e9ef; border-radius: 16px; padding: 26px 30px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); position: relative; overflow: hidden; }
+.rr-hero { background: #fff; border: 1px solid #e7e9ef; border-radius: 14px; padding: 15px 22px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); position: relative; overflow: hidden; }
 .rr-hero:before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(#6366f1, #8b5cf6); }
-.rr-hero__badge { display: inline-block; font-family: 'JetBrains Mono', monospace; background: #f7f8fa; border: 1px solid #e7e9ef; color: #4f46e5; font-weight: 600; font-size: 0.7rem; letter-spacing: 0.02em; padding: 5px 11px; border-radius: 7px; margin-bottom: 14px; }
-.rr-hero__title { font-size: 2.0rem; font-weight: 700; color: #0f172a; line-height: 1.12; margin: 0; letter-spacing: -0.025em; }
-.rr-hero__tag { font-size: 0.95rem; color: #64748b; margin-top: 9px; max-width: 64ch; }
-.rr-pills { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 7px; }
-.rr-pill { display: inline-block; background: #f1f2f6; border: 1px solid #e7e9ef; color: #475569; font-weight: 600; font-size: 0.76rem; padding: 5px 11px; border-radius: 999px; }
+.rr-hero__badge { display: inline-block; font-family: 'JetBrains Mono', monospace; background: #f7f8fa; border: 1px solid #e7e9ef; color: #4f46e5; font-weight: 600; font-size: 0.68rem; letter-spacing: 0.02em; padding: 4px 10px; border-radius: 7px; margin-bottom: 9px; }
+.rr-hero__title { font-size: 1.5rem; font-weight: 700; color: #0f172a; line-height: 1.1; margin: 0; letter-spacing: -0.025em; }
+.rr-hero__tag { font-size: 0.88rem; color: #64748b; margin-top: 6px; max-width: 72ch; }
+.rr-pills { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 7px; }
+.rr-pill { display: inline-block; background: #f1f2f6; border: 1px solid #e7e9ef; color: #475569; font-weight: 600; font-size: 0.74rem; padding: 4px 10px; border-radius: 999px; }
 .rr-pill--accent { color: #4f46e5; border-color: #dcd9fb; background: #eef0fe; }
 
 /* section labels in the input card */

@@ -108,7 +108,7 @@ def render_results_view(ranked, parsed_jd, names, honeypots, csv_data, *, height
     payload = {"cands": cands, "honeypotReasons": hp_reasons, "jd": jd, "csv": csv_data or ""}
     payload_json = json.dumps(payload).replace("</", "<\\/")
     html = _TEMPLATE.replace("__PAYLOAD__", payload_json)
-    components.html(html, height=height, scrolling=False)
+    components.html(html, height=height, scrolling=True)
 
 
 _TEMPLATE = r"""
@@ -124,7 +124,8 @@ _TEMPLATE = r"""
   .mono{font-family:'JetBrains Mono',monospace}
   ::-webkit-scrollbar{width:9px;height:9px}
   ::-webkit-scrollbar-thumb{background:#cfd4de;border-radius:9px;border:2px solid transparent;background-clip:padding-box}
-  .app{height:100vh;display:flex;flex-direction:column;overflow:hidden;background:#f6f7f9}
+  .app{min-height:100vh;display:flex;flex-direction:column;background:#f6f7f9}
+  .hdr{position:sticky;top:0;z-index:20;background:#f6f7f9}
   .topbar{flex:0 0 auto;display:flex;align-items:center;gap:18px;padding:0 22px;height:58px;background:#fff;border-bottom:1px solid #e7e9ef}
   .logo{width:11px;height:11px;border-radius:3px;background:#4f46e5;transform:rotate(45deg)}
   .pill{font-size:11px;font-weight:600;color:#6b7280;background:#f1f2f6;padding:3px 9px;border-radius:6px;letter-spacing:.02em}
@@ -143,8 +144,8 @@ _TEMPLATE = r"""
   .chip{font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;white-space:nowrap}
   .chip-req{background:#fff;color:#4338ca;border:1px solid #ddd6fb}
   .chip-flag{background:#fdeef0;color:#a8324b;border:1px solid #f6d6dd}
-  .main{flex:1;display:flex;min-height:0}
-  .rail{flex:0 0 440px;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e7e9ef;min-height:0}
+  .main{display:flex;align-items:flex-start}
+  .rail{flex:0 0 440px;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e7e9ef;position:sticky;top:108px;align-self:flex-start;height:calc(100vh - 108px);max-height:calc(100vh - 108px)}
   .tabs{flex:0 0 auto;display:flex;gap:4px;padding:12px 14px 0}
   .tabs button{flex:1;height:34px;border:none;background:#f7f8fa;color:#94a3b8;font-family:inherit;font-size:13px;font-weight:600;border-radius:8px 8px 0 0;cursor:pointer;border-bottom:2px solid transparent}
   .tabs button.on{background:#fff;color:#0f172a;border-bottom-color:#4f46e5}
@@ -162,7 +163,7 @@ _TEMPLATE = r"""
   .gemdot{width:6px;height:6px;border-radius:999px;background:#d4a017;display:inline-block}
   .badge{font-size:16px;font-weight:700;line-height:1}
   .badge-l{font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
-  .detail{flex:1;overflow-y:auto;min-width:0}
+  .detail{flex:1;min-width:0}
   .dwrap{max-width:1100px;margin:0;padding:30px 52px 80px}
   .dwrap.compact{padding:20px 44px 60px}
   .dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
@@ -172,8 +173,15 @@ _TEMPLATE = r"""
   .score-big{font-size:40px;font-weight:700;line-height:.9}
   .sect-t{font-size:13px;font-weight:700;letter-spacing:-.01em}
   .barbig{display:flex;height:30px;margin-top:11px;background:#f0f1f5;border-radius:9px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(15,23,42,.04)}
-  .brow{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #f1f2f6}
-  .brow.compact{padding:6px 0}
+  .brow{display:flex;align-items:center;gap:12px;padding:9px 10px;border-bottom:1px solid #f1f2f6;border-radius:8px}
+  .brow.compact{padding:6px 10px}
+  .brow.clickable{cursor:pointer;transition:background .12s,box-shadow .12s}
+  .brow.clickable:hover{background:#e7e8ff;box-shadow:inset 3px 0 0 #4f46e5}
+  .brow .chev{flex:0 0 16px;text-align:center;color:#aab0c0;font-size:12px;font-weight:700;transition:transform .15s,color .15s}
+  .brow.clickable:hover .chev{color:#4f46e5}
+  .brow.open{background:#f0f0fe}
+  .brow.open .chev{transform:rotate(90deg);color:#4f46e5}
+  .evhint{font-size:11px;font-weight:600;color:#4f46e5;background:#eef0fe;border:1px solid #dcd9fb;padding:3px 9px;border-radius:999px;white-space:nowrap}
   .bdot{width:10px;height:10px;border-radius:3px}
   .corro{margin-top:22px;display:flex;align-items:center;gap:14px;padding:13px 16px;background:#f7f8fa;border:1px solid #ecedf2;border-radius:11px}
   .cdot{width:12px;height:12px;border-radius:999px}
@@ -196,7 +204,6 @@ _TEMPLATE = r"""
   .avail{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
   .availdot{width:6px;height:6px;border-radius:999px;display:inline-block}
   .emptyrail{padding:30px 16px;text-align:center;color:#9aa1ad;font-size:13px}
-  .brow:hover{background:#fafbfc}
   .sigev{font-size:12px;color:#475569;background:#f7f8fa;border-radius:8px;padding:9px 12px;margin:2px 0 8px;line-height:1.5}
 </style></head>
 <body><div class="app" id="app"></div>
@@ -306,25 +313,26 @@ function detailHTML(c){
       +'</div></div>';
   } else {
     var S=segs(c), fus=fusion(c), adj=c.score-fus;
-    h+='<div style="margin-top:26px"><div style="display:flex;align-items:baseline;justify-content:space-between"><span class="sect-t">Score composition</span><span class="micro">segment width = signal \u00d7 weight \u00b7 click a row for evidence</span></div>';
+    h+='<div style="margin-top:26px"><div style="display:flex;align-items:baseline;justify-content:space-between"><span class="sect-t">Score composition</span><span class="evhint">\u25b8 click any signal for the evidence behind it</span></div>';
     h+='<div class="barbig">'+S.map(function(s){return '<div style="width:'+s.widthPct+'%;background:'+s.color+'" title="'+s.label+': '+s.contrib.toFixed(3)+'  ('+s.sub.toFixed(2)+' \u00d7 '+s.weight.toFixed(2)+')"></div>';}).join("")+'</div>';
     h+='<div style="margin-top:16px">';
     h+=S.map(function(s){
       var sopen=!!st.sigOpen[s.key];
-      return '<div class="brow'+(dense?" compact":"")+'" data-sig="'+s.key+'" style="cursor:pointer">'
+      return '<div class="brow clickable'+(dense?" compact":"")+(sopen?" open":"")+'" data-sig="'+s.key+'">'
         +'<div style="flex:0 0 132px;display:flex;align-items:center;gap:9px"><span class="bdot" style="background:'+s.color+'"></span><span style="font-size:13px;font-weight:600;color:#1e293b">'+s.label+'</span><span class="mono" style="font-size:10px;font-weight:700;color:#94a3b8">'+Math.round(s.weight*100)+'%</span></div>'
         +'<div style="flex:1;height:7px;background:#eef0f5;border-radius:999px;overflow:hidden"><div style="height:100%;width:'+s.subPct+'%;background:'+s.color+';opacity:.92"></div></div>'
         +'<div class="mono" style="flex:0 0 48px;text-align:right;font-size:13px;font-weight:600;color:#334155">'+s.sub.toFixed(2)+'</div>'
-        +'<div class="mono" style="flex:0 0 66px;text-align:right;font-size:12px;color:#94a3b8">+'+s.contrib.toFixed(3)+'</div></div>'
+        +'<div class="mono" style="flex:0 0 66px;text-align:right;font-size:12px;color:#94a3b8">+'+s.contrib.toFixed(3)+'</div>'
+        +'<span class="chev">\u25b8</span></div>'
         +(sopen?'<div class="sigev">'+esc(sigEvidence(c,s.key))+'</div>':'');
     }).join("");
     if(Math.abs(adj)>0.005){
       h+='<div class="brow"><div style="flex:0 0 132px;font-size:13px;font-weight:600;color:#a8516b">Multipliers</div>'
         +'<div style="flex:1;font-size:12px;color:#94a3b8">role-fit / location / career caps</div>'
         +'<div style="flex:0 0 48px"></div>'
-        +'<div class="mono" style="flex:0 0 66px;text-align:right;font-size:12px;color:'+(adj<0?"#b42318":"#15803d")+'">'+(adj<0?"":"+")+adj.toFixed(3)+'</div></div>';
+        +'<div class="mono" style="flex:0 0 66px;text-align:right;font-size:12px;color:'+(adj<0?"#b42318":"#15803d")+'">'+(adj<0?"":"+")+adj.toFixed(3)+'</div><span class="chev" style="visibility:hidden">\u25b8</span></div>';
     }
-    h+='<div style="display:flex;align-items:center;gap:12px;padding:9px 0 0"><div style="flex:0 0 132px;font-size:13px;font-weight:700">Composite</div><div style="flex:1"></div><div style="flex:0 0 48px"></div><div class="mono" style="flex:0 0 66px;text-align:right;font-size:13px;font-weight:700">'+c.score.toFixed(4)+'</div></div></div></div>';
+    h+='<div style="display:flex;align-items:center;gap:12px;padding:9px 0 0"><div style="flex:0 0 132px;font-size:13px;font-weight:700">Composite</div><div style="flex:1"></div><div style="flex:0 0 48px"></div><div class="mono" style="flex:0 0 66px;text-align:right;font-size:13px;font-weight:700">'+c.score.toFixed(4)+'</div><span style="flex:0 0 14px"></span></div></div></div>';
 
     var cr=corro(c);
     h+='<div class="corro"><div style="display:flex;gap:5px">'+cr.dots.map(function(on){return '<span class="cdot" style="background:'+(on?cr.col:"#d6dae2")+'"></span>';}).join("")+'</div>'
@@ -350,6 +358,7 @@ function render(){
   var jd=D.jd;
 
   var html='';
+  html+='<div class="hdr">';
   html+='<div class="topbar"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:12px;font-weight:700;color:#6b7280;letter-spacing:.05em;text-transform:uppercase">Evidence ledger</span></div>'
     +'<div class="vr"></div>'
     +'<div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1"><span style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(jd.role)+'</span><span class="mono" style="font-size:12px;color:#9ca3af;white-space:nowrap">'+esc(jd.band)+'</span></div>'
@@ -368,6 +377,7 @@ function render(){
     +'<div style="display:flex;align-items:center;gap:7px"><span class="lbl">DENSITY</span><div class="seg">'
       +'<button data-dens="comfortable" class="'+(st.density==="comfortable"?"on":"")+'">Comfortable</button>'
       +'<button data-dens="compact" class="'+(st.density==="compact"?"on":"")+'">Compact</button></div></div></div>';
+  html+='</div>';
 
   if(st.jd){
     html+='<div class="jdpanel">'
