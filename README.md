@@ -118,6 +118,11 @@ python precompute.py --candidates data/candidates.jsonl --jd data/job_descriptio
 
 ## Step 2 — Rank (< 5 min, CPU only)
 
+> **Prerequisite:** run **Step 1 (`precompute.py`) first.** `rank.py` loads the pre-built
+> FAISS index + `parsed_jd.json` from `data/index/` — it does **not** re-read `--candidates`
+> (that flag is accepted for spec-command compatibility only). Pre-computation is
+> unconstrained per spec §3 / §10.3; only this step is time/CPU/network limited.
+
 ```bash
 python rank.py --candidates data/candidates.jsonl --out submission.csv
 ```

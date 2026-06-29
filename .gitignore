@@ -2,7 +2,10 @@
 .env
 
 # Pre-computed artifacts (large, machine-specific)
-data/index/
+data/index/*
+# …but pin the tiny LLM-parsed JD so Stage-3 reproduction uses the exact JD parse
+# (derived only from the public job_description.txt — no candidate data, no secrets).
+!data/index/parsed_jd.json
 sample_index/
 *.faiss
 *.npy

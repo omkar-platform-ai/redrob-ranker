@@ -4,7 +4,6 @@ Results are rendered by ``redrob_results_view.render_results_view`` (a self-
 contained client-side component). The ranking pipeline below is unchanged.
 """
 
-import html
 import json
 import sys
 from pathlib import Path
@@ -92,25 +91,6 @@ def _demo_demote_excluded(ranked: list) -> list:
         prev = sc.score
         sc.rank = i + 1
     return ranked
-
-
-# Skill chips. Streamlit 1.40 has no markdown badge syntax, so we render real HTML
-# spans via unsafe_allow_html. Colors live in the CSS (.rr-chip--*) injected by
-# _inject_css(); here we only pick the class so markup stays clean.
-_CHIP_CLASS = {
-    "blue": "rr-chip--blue", "green": "rr-chip--green",
-    "red": "rr-chip--red", "gold": "rr-chip--gold",
-}
-
-
-def _badges(items: list[str], color: str) -> str:
-    """Render a skill list as styled HTML chips, or '—' if empty."""
-    if not items:
-        return "—"
-    cls = _CHIP_CLASS[color]
-    return "".join(
-        f'<span class="rr-chip {cls}">{html.escape(str(s))}</span>' for s in items
-    )
 
 
 # ── Honeypot reason humaniser (used when building the results payload) ──────────

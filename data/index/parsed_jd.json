@@ -1,0 +1,45 @@
+{
+  "title": "Senior AI Engineer \u2014 Founding Team",
+  "required_skills": [
+    "Production embeddings-based retrieval systems",
+    "Vector databases or hybrid search infrastructure",
+    "Python",
+    "Ranking system evaluation frameworks",
+    "ML/AI systems design",
+    "Production deployment experience"
+  ],
+  "nice_to_have_skills": [
+    "LLM fine-tuning",
+    "Learning-to-rank models",
+    "HR-tech or recruiting tech experience",
+    "Distributed systems",
+    "Large-scale inference optimization",
+    "Open-source AI/ML contributions"
+  ],
+  "min_experience_years": 5,
+  "max_experience_years": 9,
+  "seniority_level": "senior",
+  "domain": "ml/ai retrieval and ranking",
+  "location_preferences": [
+    "Pune",
+    "Noida",
+    "Hyderabad",
+    "Mumbai",
+    "Delhi NCR"
+  ],
+  "industry_preferences": [
+    "product companies",
+    "Series A startups",
+    "AI-native platforms"
+  ],
+  "disqualifiers": [
+    "pure research background without production deployment",
+    "LLM-only experience under 12 months without pre-LLM ML production",
+    "no production code in last 18 months",
+    "title-chasing with job changes every 1.5 years",
+    "consulting-only background",
+    "primary expertise in computer vision/speech/robotics",
+    "closed-source proprietary work 5+ years without external validation"
+  ],
+  "raw_summary": "Own the intelligence layer (ranking, retrieval, matching systems) at a Series A AI talent intelligence platform. Ship improved ranking v2 in first 90 days using embeddings and hybrid retrieval, then build evaluation infrastructure and mentor growing engineering team. Requires 5-9 years experience with hands-on production ML at product companies, deep expertise in embeddings/vector databases/ranking evaluation, strong Python, and ability to balance technical depth with scrappy shipping velocity."
+}
