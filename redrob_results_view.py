@@ -124,8 +124,8 @@ _TEMPLATE = r"""
   .mono{font-family:'JetBrains Mono',monospace}
   ::-webkit-scrollbar{width:9px;height:9px}
   ::-webkit-scrollbar-thumb{background:#cfd4de;border-radius:9px;border:2px solid transparent;background-clip:padding-box}
-  .app{min-height:100vh;display:flex;flex-direction:column;background:#f6f7f9}
-  .hdr{position:sticky;top:0;z-index:20;background:#f6f7f9}
+  .app{height:100vh;display:flex;flex-direction:column;background:#f6f7f9;overflow:hidden}
+  .hdr{flex:0 0 auto;z-index:20;background:#f6f7f9}
   .topbar{flex:0 0 auto;display:flex;align-items:center;gap:18px;padding:0 22px;height:58px;background:#fff;border-bottom:1px solid #e7e9ef}
   .logo{width:11px;height:11px;border-radius:3px;background:#4f46e5;transform:rotate(45deg)}
   .pill{font-size:11px;font-weight:600;color:#6b7280;background:#f1f2f6;padding:3px 9px;border-radius:6px;letter-spacing:.02em}
@@ -144,8 +144,8 @@ _TEMPLATE = r"""
   .chip{font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;white-space:nowrap}
   .chip-req{background:#fff;color:#4338ca;border:1px solid #ddd6fb}
   .chip-flag{background:#fdeef0;color:#a8324b;border:1px solid #f6d6dd}
-  .main{display:flex;align-items:flex-start}
-  .rail{flex:0 0 440px;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e7e9ef;position:sticky;top:108px;align-self:flex-start;height:calc(100vh - 108px);max-height:calc(100vh - 108px)}
+  .main{flex:1;min-height:0;display:flex}
+  .rail{flex:0 0 440px;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e7e9ef;min-height:0}
   .tabs{flex:0 0 auto;display:flex;gap:4px;padding:12px 14px 0}
   .tabs button{flex:1;height:34px;border:none;background:#f7f8fa;color:#475569;font-family:inherit;font-size:13px;font-weight:600;border-radius:8px 8px 0 0;cursor:pointer;border-bottom:2px solid transparent}
   .tabs button.on{background:#fff;color:#0f172a;border-bottom-color:#4f46e5}
@@ -163,7 +163,7 @@ _TEMPLATE = r"""
   .gemdot{width:6px;height:6px;border-radius:999px;background:#d4a017;display:inline-block}
   .badge{font-size:16px;font-weight:700;line-height:1}
   .badge-l{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
-  .detail{flex:1;min-width:0}
+  .detail{flex:1;min-width:0;overflow-y:auto}
   .dwrap{max-width:1100px;margin:0;padding:30px 52px 80px}
   .dwrap.compact{padding:20px 44px 60px}
   .dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
@@ -207,7 +207,7 @@ _TEMPLATE = r"""
   .sigev{font-size:12px;color:#475569;background:#f7f8fa;border-radius:8px;padding:9px 12px;margin:2px 0 8px;line-height:1.5}
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   [role="option"]:focus-visible,[role="button"]:focus-visible,button:focus-visible,.fchip:focus-visible,.search:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
-  @media (max-width:820px){.main{flex-direction:column}.rail{position:static;height:auto;max-height:none;flex:0 0 auto;border-right:none;border-bottom:1px solid #e7e9ef}}
+  @media (max-width:820px){.app{height:auto;overflow:visible}.main{flex-direction:column}.rail{flex:0 0 auto;border-right:none;border-bottom:1px solid #e7e9ef}.detail{overflow:visible}}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head>
 <body><div class="app" id="app"></div><div id="srlive" aria-live="polite" aria-atomic="true" class="sr-only"></div>
