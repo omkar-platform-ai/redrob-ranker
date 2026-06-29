@@ -65,9 +65,27 @@ FAISS index + parsed_jd.json (from disk)
 ## Setup
 
 ```bash
+python3 -m venv .venv && source .venv/bin/activate   # recommended (Python 3.11); Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env   # add your LLM API key (for pre-computation only)
 ```
+
+> **Platform note:** dependencies install the same way on all OSes (pinned wheels, no build step).
+> The command snippets use bash and are tested on **macOS / Linux**. On **Windows**, run them
+> under **WSL2**, or skip local setup and use the **Docker** path (Option C) — it's fully
+> OS-agnostic and mirrors how the Docker reproduction runs. Only venv activation differs by OS
+> (shown inline above).
+
+---
+
+## Dataset
+
+The full candidate dataset (`candidates.jsonl`) is **provided by the hackathon and is not
+committed to this repo** — it is not ours to publish (see `.gitignore`). Before running
+Step 1, place the provided file at `data/candidates.jsonl` (or pass any path via
+`--candidates`). The spec's reproduction command supplies the same file the same way:
+`python rank.py --candidates ./candidates.jsonl …`. Only `data/job_description.txt` and a
+100-row `data/sample_candidates.json` (for the sandbox demo) ship in the repo.
 
 ---
 
@@ -81,7 +99,14 @@ Pre-computation has **no time or resource constraints** per the hackathon spec (
 python precompute.py --candidates data/candidates.jsonl --jd data/job_description.txt
 ```
 
-Outputs to `data/index/`: `candidates.faiss`, `candidate_ids.json`, `parsed_candidates.jsonl`, `parsed_jd.json`
+Outputs to `data/index/` (all gitignored, except `parsed_jd.json` which is pinned for reproducible ranking — see Step 2):
+
+| File | What it holds / how it's used |
+|---|---|
+| `candidates.faiss` | The FAISS `IndexFlatIP` — 100K × 768-dim, L2-normalized `bge-base` candidate embeddings (~295 MB). Inner product on normalized vectors = cosine similarity. `rank.py` loads this and runs the ANN search to shortlist the top-500 candidates. |
+| `candidate_ids.json` | JSON array of `candidate_id` strings, **row-aligned** with the FAISS index (row *i* ↔ `candidate_ids[i]`). Maps each ANN hit back to its candidate id. |
+| `parsed_candidates.jsonl` | Parsed-candidate cache — one internal flat dict per line (redrob schema → normalized fields), exactly one row per id, aligned with the index. `rank.py` loads only the **top-500** records from here, so it never re-parses the raw dataset at rank time. |
+| `parsed_jd.json` | The LLM-parsed job description: title, required / nice-to-have skills, min/max experience years, disqualifiers, and a raw summary. Built once during pre-compute (the only LLM call in the pipeline); `rank.py` reads it but never calls the LLM. |
 
 ### Tuning for lower RAM usage
 
