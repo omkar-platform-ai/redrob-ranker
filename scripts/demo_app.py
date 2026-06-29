@@ -5,6 +5,7 @@ contained client-side component). The ranking pipeline below is unchanged.
 """
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -34,6 +35,25 @@ def _load_candidates(raw: str) -> list[dict]:
         except json.JSONDecodeError:
             pass  # not a valid array as a whole — fall through to line-by-line JSONL
     return [json.loads(line) for line in raw.splitlines() if line.strip()]
+
+
+def _hf_model_cached(model_id: str) -> bool:
+    """Whether the embedding model snapshot already exists in the local HF cache.
+
+    A filesystem check on purpose: HF freezes HF_HUB_OFFLINE the moment
+    huggingface_hub is imported, so the decision to force offline mode must be made
+    *before* importing it — i.e. without calling its cache helpers.
+    """
+    hub = (
+        os.environ.get("HF_HUB_CACHE")
+        or os.environ.get("HUGGINGFACE_HUB_CACHE")
+        or os.path.join(
+            os.environ.get("HF_HOME") or os.path.expanduser("~/.cache/huggingface"),
+            "hub",
+        )
+    )
+    snapshots = Path(hub) / f"models--{model_id.replace('/', '--')}" / "snapshots"
+    return snapshots.is_dir() and any(snapshots.iterdir())
 
 
 # ── DEMO-ONLY ranking polish (NOT in the production ranker) ────────────────────
@@ -139,7 +159,7 @@ html, body, [class*="css"], .stApp { font-family: 'Instrument Sans', system-ui, 
 .rrx-word { font-weight: 700; font-size: 18px; letter-spacing: -0.015em; color: #0f172a; }
 .rrx-tagpill { font-size: 12px; font-weight: 600; color: #6b7280; background: #f1f2f6; padding: 4px 10px; border-radius: 7px; letter-spacing: 0.02em; }
 .rrx-spacer { flex: 1; }
-.rrx-mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #94a3b8; }
+.rrx-mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #475569; }
 
 /* hero — white card + hairline, same surface language as the ledger */
 .rr-hero { background: #fff; border: 1px solid #e7e9ef; border-radius: 14px; padding: 15px 22px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); position: relative; overflow: hidden; }
@@ -153,9 +173,9 @@ html, body, [class*="css"], .stApp { font-family: 'Instrument Sans', system-ui, 
 
 /* section labels in the input card */
 .rr-section { font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 4px 0 6px; letter-spacing: -0.01em; }
-.rr-section .rr-num { font-family: 'JetBrains Mono', monospace; color: #94a3b8; font-weight: 700; margin-right: 5px; }
-.rr-subtle { color: #94a3b8; font-weight: 500; }
-.rr-hint { color: #94a3b8; font-size: 0.9rem; text-align: center; margin: 22px 0; }
+.rr-section .rr-num { font-family: 'JetBrains Mono', monospace; color: #475569; font-weight: 700; margin-right: 5px; }
+.rr-subtle { color: #475569; font-weight: 500; }
+.rr-hint { color: #475569; font-size: 0.9rem; text-align: center; margin: 22px 0; }
 
 /* chips (still used elsewhere) */
 .rr-chip { display: inline-block; padding: 3px 11px; border-radius: 999px; margin: 3px 5px 3px 0; font-size: 0.82rem; font-weight: 500; white-space: nowrap; border: 1px solid transparent; }
@@ -338,6 +358,17 @@ if run:
     # unchanged either way.
     with st.status("Running ranking pipeline...", expanded=True) as status:
         try:
+            # The demo is a rank-time artifact. If the embedding model is already in
+            # the local HuggingFace cache, force offline so loading it doesn't block on
+            # a huggingface.co metadata check (minutes of retries on a slow/unreachable
+            # network — the hang rank.py avoids with the same flags). If it is NOT
+            # cached (a fresh machine), leave the network on so it downloads normally;
+            # the judged pipeline downloads it once in precompute.py. Must precede any
+            # HF import, which freezes the flag at import time.
+            from src.config import EMBEDDING_MODEL
+            if _hf_model_cached(EMBEDDING_MODEL):
+                os.environ.setdefault("HF_HUB_OFFLINE", "1")
+                os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
             from src.parsers.candidate import parse_redrob_candidate
             from src.parsers.jd import _keyword_fallback
             from src.embedder import get_embedder
